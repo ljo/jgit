@@ -103,7 +103,7 @@ abstract class FileObjectDatabase extends ObjectDatabase {
 	File fileFor(final String objectName) {
 		final String d = objectName.substring(0, 2);
 		final String f = objectName.substring(2);
-		return new File(new File(getDirectory(), d), f);
+		return getFS().resolve(getFS().resolve(getDirectory(), d), f);
 	}
 
 	final boolean hasObjectImpl1(final AnyObjectId objectId) {

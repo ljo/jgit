@@ -47,6 +47,7 @@ package org.eclipse.jgit.diff;
 import java.text.MessageFormat;
 
 import org.eclipse.jgit.internal.JGitText;
+import org.eclipse.jgit.util.FS;
 import org.eclipse.jgit.util.IntList;
 import org.eclipse.jgit.util.LongList;
 
@@ -537,8 +538,8 @@ if (k < beginK || k > endK)
 			System.exit(1);
 		}
 		try {
-			RawText a = new RawText(new java.io.File(args[0]));
-			RawText b = new RawText(new java.io.File(args[1]));
+			RawText a = new RawText(FS.DETECTED, new java.io.File(args[0]));
+			RawText b = new RawText(FS.DETECTED, new java.io.File(args[1]));
 			EditList r = INSTANCE.diff(RawTextComparator.DEFAULT, a, b);
 			System.out.println(r.toString());
 		} catch (Exception e) {

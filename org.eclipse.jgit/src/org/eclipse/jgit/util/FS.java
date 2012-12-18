@@ -45,9 +45,14 @@ package org.eclipse.jgit.util;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.RandomAccessFile;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
@@ -192,6 +197,14 @@ public abstract class FS {
 		if (abspn.isAbsolute())
 			return abspn;
 		return new File(dir, name);
+	}
+
+	/**
+	 * @param name
+	 * @return File
+	 */
+	public File resolve(String name) {
+		return new File(name);
 	}
 
 	/**
@@ -417,5 +430,65 @@ public abstract class FS {
 		Holder(V value) {
 			this.value = value;
 		}
+	}
+
+	/**
+	 * @param file
+	 * @return OutputStream
+	 * @throws FileNotFoundException
+	 */
+	public FileOutputStream fileOutputStream(File file)
+			throws FileNotFoundException {
+		return new FileOutputStream(file);
+	}
+
+	/**
+	 * @param file
+	 * @param append
+	 * @return FileOutputStream
+	 * @throws FileNotFoundException
+	 */
+	public FileOutputStream fileOutputStream(File file, boolean append)
+			throws FileNotFoundException {
+		return new FileOutputStream(file, append);
+	}
+
+	/**
+	 * @param prefix
+	 * @param suffix
+	 * @param directory
+	 * @return File
+	 * @throws IOException
+	 */
+	public File createTempFile(String prefix, String suffix, File directory) throws IOException {
+		return File.createTempFile(prefix, suffix, directory);
+	}
+
+	/**
+	 * @param file
+	 * @param mode
+	 * @return RandomAccessFile
+	 * @throws FileNotFoundException
+	 */
+	public RandomAccessFile randomAccessFile(File file, String mode) throws FileNotFoundException {
+		return new RandomAccessFile(file, mode);
+	}
+
+	/**
+	 * @param file
+	 * @return FileInputStream
+	 * @throws FileNotFoundException
+	 */
+	public FileInputStream fileInputStream(File file) throws FileNotFoundException {
+		return new FileInputStream(file);
+	}
+
+	/**
+	 * @param f
+	 * @return BufferedReader
+	 * @throws FileNotFoundException
+	 */
+	public BufferedReader bufferedReader(File f) throws FileNotFoundException {
+		return new BufferedReader(new FileReader(f));
 	}
 }

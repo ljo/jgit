@@ -187,7 +187,7 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 	protected RebaseCommand(Repository repo) {
 		super(repo);
 		walk = new RevWalk(repo);
-		rebaseDir = new File(repo.getDirectory(), REBASE_MERGE);
+		rebaseDir = repo.getFS().resolve(repo.getDirectory(), REBASE_MERGE);
 	}
 
 	/**
@@ -464,10 +464,10 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 	}
 
 	private PersonIdent parseAuthor() throws IOException {
-		File authorScriptFile = new File(rebaseDir, AUTHOR_SCRIPT);
+		File authorScriptFile = repo.getFS().resolve(rebaseDir, AUTHOR_SCRIPT);
 		byte[] raw;
 		try {
-			raw = IO.readFully(authorScriptFile);
+			raw = IO.readFully(repo.getFS(), authorScriptFile);
 		} catch (FileNotFoundException notFound) {
 			return null;
 		}
@@ -529,8 +529,8 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 			return;
 		List<String> todoLines = new ArrayList<String>();
 		List<String> poppedLines = new ArrayList<String>();
-		File todoFile = new File(rebaseDir, GIT_REBASE_TODO);
-		File doneFile = new File(rebaseDir, DONE);
+		File todoFile = repo.getFS().resolve(rebaseDir, GIT_REBASE_TODO);
+		File doneFile = repo.getFS().resolve(rebaseDir, DONE);
 		BufferedReader br = new BufferedReader(new InputStreamReader(
 				new FileInputStream(todoFile), Constants.CHARACTER_ENCODING));
 		try {
@@ -872,7 +872,8 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 	}
 
 	private String readFile(File directory, String fileName) throws IOException {
-		byte[] content = IO.readFully(new File(directory, fileName));
+		byte[] content = IO.readFully(repo.getFS(),
+				repo.getFS().resolve(directory, fileName));
 		// strip off the last LF
 		int end = content.length;
 		while (0 < end && content[end - 1] == '\n')
@@ -908,7 +909,8 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 	}
 
 	List<Step> loadSteps() throws IOException {
-		byte[] buf = IO.readFully(new File(rebaseDir, GIT_REBASE_TODO));
+		byte[] buf = IO.readFully(repo.getFS(),
+				repo.getFS().resolve(rebaseDir, GIT_REBASE_TODO));
 		int ptr = 0;
 		int tokenBegin = 0;
 		ArrayList<Step> r = new ArrayList<Step>();

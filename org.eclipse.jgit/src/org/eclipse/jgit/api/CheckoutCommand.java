@@ -430,7 +430,7 @@ public class CheckoutCommand extends GitCommand<Ref> {
 	}
 
 	private void checkoutPath(DirCacheEntry entry, ObjectReader reader) {
-		File file = new File(repo.getWorkTree(), entry.getPathString());
+		File file = repo.getFS().resolve(repo.getWorkTree(), entry.getPathString());
 		File parentDir = file.getParentFile();
 		try {
 			FileUtils.mkdirs(parentDir, true);

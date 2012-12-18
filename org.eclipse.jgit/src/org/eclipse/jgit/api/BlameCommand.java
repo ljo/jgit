@@ -213,9 +213,9 @@ public class BlameCommand extends GitCommand<BlameResult> {
 					if (0 <= entry)
 						gen.push(null, dc.getEntry(entry).getObjectId());
 
-					File inTree = new File(repo.getWorkTree(), path);
+					File inTree = repo.getFS().resolve(repo.getWorkTree(), path);
 					if (inTree.isFile())
-						gen.push(null, new RawText(inTree));
+						gen.push(null, new RawText(repo.getFS(), inTree));
 				}
 			}
 			return gen.computeBlameResult();

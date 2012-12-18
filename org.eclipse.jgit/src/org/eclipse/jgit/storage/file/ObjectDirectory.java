@@ -47,7 +47,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -155,10 +154,10 @@ public class ObjectDirectory extends FileObjectDatabase {
 			File[] alternatePaths, FS fs, File shallowFile) throws IOException {
 		config = cfg;
 		objects = dir;
-		infoDirectory = new File(objects, "info");
-		packDirectory = new File(objects, "pack");
-		alternatesFile = new File(infoDirectory, "alternates");
-		cachedPacksFile = new File(infoDirectory, "cached-packs");
+		infoDirectory = fs.resolve(objects, "info");
+		packDirectory = fs.resolve(objects, "pack");
+		alternatesFile = fs.resolve(infoDirectory, "alternates");
+		cachedPacksFile = fs.resolve(infoDirectory, "cached-packs");
 		packList = new AtomicReference<PackList>(NO_PACKS);
 		cachedPacks = new AtomicReference<CachedPackList>();
 		unpackedObjectCache = new UnpackedObjectCache();
@@ -278,7 +277,7 @@ public class ObjectDirectory extends FileObjectDatabase {
 		FileSnapshot s = FileSnapshot.save(cachedPacksFile);
 		byte[] buf;
 		try {
-			buf = IO.readFully(cachedPacksFile);
+			buf = IO.readFully(fs, cachedPacksFile);
 		} catch (FileNotFoundException e) {
 			buf = new byte[0];
 		}
@@ -348,7 +347,7 @@ public class ObjectDirectory extends FileObjectDatabase {
 		if (!p.substring(0, 45).equals(i.substring(0, 45)))
 			throw new IOException(MessageFormat.format(JGitText.get().packDoesNotMatchIndex, pack));
 
-		PackFile res = new PackFile(idx, pack);
+		PackFile res = new PackFile(fs, idx, pack);
 		insertPack(res);
 		return res;
 	}
@@ -408,7 +407,7 @@ public class ObjectDirectory extends FileObjectDatabase {
 		}
 
 		String fanOut = id.name().substring(0, 2);
-		String[] entries = new File(getDirectory(), fanOut).list();
+		String[] entries = fs.resolve(getDirectory(), fanOut).list();
 		if (entries != null) {
 			for (String e : entries) {
 				if (e.length() != Constants.OBJECT_ID_STRING_LENGTH - 2)
@@ -455,6 +454,7 @@ public class ObjectDirectory extends FileObjectDatabase {
 					pList = scanPacks(pList);
 					continue SEARCH;
 				} catch (IOException e) {
+					e.printStackTrace();
 					// Assume the pack is corrupted.
 					//
 					removePack(p);
@@ -493,7 +493,7 @@ public class ObjectDirectory extends FileObjectDatabase {
 			AnyObjectId objectId) throws IOException {
 		try {
 			File path = fileFor(objectName);
-			FileInputStream in = new FileInputStream(path);
+			FileInputStream in = fs.fileInputStream(path);
 			try {
 				return UnpackedObject.getSize(in, objectId, curs);
 			} finally {
@@ -541,7 +541,7 @@ public class ObjectDirectory extends FileObjectDatabase {
 			throws IOException {
 		try {
 			File path = fileFor(objectName);
-			FileInputStream in = new FileInputStream(path);
+			FileInputStream in = getFS().fileInputStream(path);
 			try {
 				unpackedObjectCache.add(objectId);
 				return UnpackedObject.open(in, path, objectId, curs);
@@ -633,7 +633,7 @@ public class ObjectDirectory extends FileObjectDatabase {
 				|| shallowFileSnapshot.isModified(shallowFile)) {
 			shallowCommitsIds = new HashSet<ObjectId>();
 
-			final BufferedReader reader = open(shallowFile);
+			final BufferedReader reader = open(fs, shallowFile);
 			try {
 				String line;
 				while ((line = reader.readLine()) != null)
@@ -746,9 +746,9 @@ public class ObjectDirectory extends FileObjectDatabase {
 				continue;
 			}
 
-			final File packFile = new File(packDirectory, packName);
-			final File idxFile = new File(packDirectory, indexName);
-			list.add(new PackFile(idxFile, packFile));
+			final File packFile = fs.resolve(packDirectory, packName);
+			final File idxFile = fs.resolve(packDirectory, indexName);
+			list.add(new PackFile(fs, idxFile, packFile));
 			foundNew = true;
 		}
 
@@ -832,7 +832,7 @@ public class ObjectDirectory extends FileObjectDatabase {
 
 	private AlternateHandle[] loadAlternates() throws IOException {
 		final List<AlternateHandle> l = new ArrayList<AlternateHandle>(4);
-		final BufferedReader br = open(alternatesFile);
+		final BufferedReader br = open(fs, alternatesFile);
 		try {
 			String line;
 			while ((line = br.readLine()) != null) {
@@ -844,9 +844,9 @@ public class ObjectDirectory extends FileObjectDatabase {
 		return l.toArray(new AlternateHandle[l.size()]);
 	}
 
-	private static BufferedReader open(final File f)
+	private static BufferedReader open(final FS fs, final File f)
 			throws FileNotFoundException {
-		return new BufferedReader(new FileReader(f));
+		return fs.bufferedReader(f);
 	}
 
 	private AlternateHandle openAlternate(final String location)
@@ -857,7 +857,7 @@ public class ObjectDirectory extends FileObjectDatabase {
 
 	private AlternateHandle openAlternate(File objdir) throws IOException {
 		final File parent = objdir.getParentFile();
-		if (FileKey.isGitRepository(parent, fs)) {
+		if (FileKey.isGitRepository(fs, parent)) {
 			FileKey key = FileKey.exact(parent, fs);
 			FileRepository db = (FileRepository) RepositoryCache.open(key);
 			return new AlternateRepository(db);

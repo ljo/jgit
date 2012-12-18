@@ -84,10 +84,11 @@ public class LockFile {
 	 * is or is not currently held before attempting to unlock it.
 	 *
 	 * @param file
+	 * @param fs
 	 * @return true if unlocked, false if unlocking failed
 	 */
-	public static boolean unlock(final File file) {
-		final File lockFile = getLockFile(file);
+	public static boolean unlock(final File file, final FS fs) {
+		final File lockFile = getLockFile(file, fs);
 		final int flags = FileUtils.RETRY | FileUtils.SKIP_MISSING;
 		try {
 			FileUtils.delete(lockFile, flags);
@@ -101,10 +102,11 @@ public class LockFile {
 	 * Get the lock file corresponding to the given file.
 	 *
 	 * @param file
+	 * @param fs
 	 * @return lock file
 	 */
-	static File getLockFile(File file) {
-		return new File(file.getParentFile(), file.getName() + SUFFIX);
+	static File getLockFile(final File file, final FS fs) {
+		return fs.resolve(file.getParentFile(), file.getName() + SUFFIX);
 	}
 
 	/** Filter to skip over active lock files when listing a directory. */
@@ -141,7 +143,7 @@ public class LockFile {
 	 */
 	public LockFile(final File f, final FS fs) {
 		ref = f;
-		lck = getLockFile(ref);
+		lck = getLockFile(ref, fs);
 		this.fs = fs;
 	}
 
@@ -159,7 +161,7 @@ public class LockFile {
 		if (lck.createNewFile()) {
 			haveLck = true;
 			try {
-				os = new FileOutputStream(lck);
+				os = fs.fileOutputStream(lck);
 			} catch (IOException ioe) {
 				unlock();
 				throw ioe;
@@ -206,7 +208,7 @@ public class LockFile {
 	public void copyCurrentContent() throws IOException {
 		requireLock();
 		try {
-			final FileInputStream fis = new FileInputStream(ref);
+			final FileInputStream fis = fs.fileInputStream(ref);
 			try {
 				if (fsync) {
 					FileChannel in = fis.getChannel();

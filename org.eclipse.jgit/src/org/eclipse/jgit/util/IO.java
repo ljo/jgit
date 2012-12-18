@@ -67,6 +67,8 @@ public class IO {
 	/**
 	 * Read an entire local file into memory as a byte array.
 	 *
+	 * @param fs
+	 *
 	 * @param path
 	 *            location of the file to read.
 	 * @return complete contents of the requested local file.
@@ -75,14 +77,16 @@ public class IO {
 	 * @throws IOException
 	 *             the file exists, but its contents cannot be read.
 	 */
-	public static final byte[] readFully(final File path)
+	public static final byte[] readFully(final FS fs, final File path)
 			throws FileNotFoundException, IOException {
-		return IO.readFully(path, Integer.MAX_VALUE);
+		return IO.readFully(fs, path, Integer.MAX_VALUE);
 	}
 
 	/**
 	 * Read at most limit bytes from the local file into memory as a byte array.
-	 *
+	 * 
+	 * @param fs
+	 * 
 	 * @param path
 	 *            location of the file to read.
 	 * @param limit
@@ -95,9 +99,10 @@ public class IO {
 	 * @throws IOException
 	 *             the file exists, but its contents cannot be read.
 	 */
-	public static final byte[] readSome(final File path, final int limit)
+	public static final byte[] readSome(final FS fs, final File path,
+			final int limit)
 			throws FileNotFoundException, IOException {
-		FileInputStream in = new FileInputStream(path);
+		FileInputStream in = fs.fileInputStream(path);
 		try {
 			byte[] buf = new byte[limit];
 			int cnt = 0;
@@ -124,6 +129,8 @@ public class IO {
 	/**
 	 * Read an entire local file into memory as a byte array.
 	 *
+	 * @param fs
+	 *
 	 * @param path
 	 *            location of the file to read.
 	 * @param max
@@ -135,9 +142,10 @@ public class IO {
 	 * @throws IOException
 	 *             the file exists, but its contents cannot be read.
 	 */
-	public static final byte[] readFully(final File path, final int max)
+	public static final byte[] readFully(final FS fs, final File path,
+			final int max)
 			throws FileNotFoundException, IOException {
-		final FileInputStream in = new FileInputStream(path);
+		final FileInputStream in = fs.fileInputStream(path);
 		try {
 			long sz = Math.max(path.length(), 1);
 			if (sz > max)

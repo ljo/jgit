@@ -49,6 +49,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import org.eclipse.jgit.util.FS;
 import org.eclipse.jgit.util.IO;
 import org.eclipse.jgit.util.IntList;
 import org.eclipse.jgit.util.RawParseUtils;
@@ -96,14 +97,16 @@ public class RawText extends Sequence {
 	 * Create a new sequence from a file.
 	 * <p>
 	 * The entire file contents are used.
-	 *
+	 * 
+	 * @param fs
+	 * 
 	 * @param file
 	 *            the text file.
 	 * @throws IOException
 	 *             if Exceptions occur while reading the file
 	 */
-	public RawText(File file) throws IOException {
-		this(IO.readFully(file));
+	public RawText(FS fs, File file) throws IOException {
+		this(IO.readFully(fs, file));
 	}
 
 	/** @return total number of items in the sequence. */

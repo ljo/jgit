@@ -59,7 +59,6 @@ import static org.eclipse.jgit.lib.Ref.Storage.PACKED;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -189,9 +188,10 @@ public class RefDirectory extends RefDatabase {
 	}
 
 	public void create() throws IOException {
+		final FS fs = parent.getFS();
 		FileUtils.mkdir(refsDir);
-		FileUtils.mkdir(new File(refsDir, R_HEADS.substring(R_REFS.length())));
-		FileUtils.mkdir(new File(refsDir, R_TAGS.substring(R_REFS.length())));
+		FileUtils.mkdir(fs.resolve(refsDir, R_HEADS.substring(R_REFS.length())));
+		FileUtils.mkdir(fs.resolve(refsDir, R_TAGS.substring(R_REFS.length())));
 		logWriter.create();
 	}
 
@@ -358,7 +358,8 @@ public class RefDirectory extends RefDatabase {
 
 			} else if (prefix.startsWith(R_REFS) && prefix.endsWith("/")) {
 				curIdx = -(curLoose.find(prefix) + 1);
-				File dir = new File(refsDir, prefix.substring(R_REFS.length()));
+				File dir = parent.getFS().resolve(refsDir,
+						prefix.substring(R_REFS.length()));
 				scanTree(prefix, dir);
 
 				// Skip over entries still within the prefix; these have
@@ -387,14 +388,15 @@ public class RefDirectory extends RefDatabase {
 			if (0 < entries.length) {
 				for (int i = 0; i < entries.length; ++i) {
 					String e = entries[i];
-					File f = new File(dir, e);
+					File f = parent.getFS().resolve(dir, e);
 					if (f.isDirectory())
 						entries[i] += '/';
 				}
 				Arrays.sort(entries);
 				for (String name : entries) {
 					if (name.charAt(name.length() - 1) == '/')
-						scanTree(prefix + name, new File(dir, name));
+						scanTree(prefix + name,
+								parent.getFS().resolve(dir, name));
 					else
 						scanOne(prefix + name);
 				}
@@ -754,8 +756,8 @@ public class RefDirectory extends RefDatabase {
 		final MessageDigest digest = Constants.newMessageDigest();
 		try {
 			br = new BufferedReader(new InputStreamReader(
-					new DigestInputStream(new FileInputStream(packedRefsFile),
-							digest), CHARSET));
+					new DigestInputStream(parent.getFS().fileInputStream(
+							packedRefsFile), digest), CHARSET));
 		} catch (FileNotFoundException noPackedRefs) {
 			// Ignore it and leave the new list empty.
 			return PackedRefList.NO_PACKED_REFS;
@@ -900,7 +902,7 @@ public class RefDirectory extends RefDatabase {
 		final byte[] buf;
 		FileSnapshot otherSnapshot = FileSnapshot.save(path);
 		try {
-			buf = IO.readSome(path, limit);
+			buf = IO.readSome(parent.getFS(), path, limit);
 		} catch (FileNotFoundException noFile) {
 			return null; // doesn't exist; not a reference.
 		}
@@ -997,9 +999,9 @@ public class RefDirectory extends RefDatabase {
 	File fileFor(String name) {
 		if (name.startsWith(R_REFS)) {
 			name = name.substring(R_REFS.length());
-			return new File(refsDir, name);
+			return parent.getFS().resolve(refsDir, name);
 		}
-		return new File(gitDir, name);
+		return parent.getFS().resolve(gitDir, name);
 	}
 
 	static int levelsIn(final String name) {

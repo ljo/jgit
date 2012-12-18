@@ -127,6 +127,7 @@ public class CloneCommand extends TransportCommand<CloneCommand, Git> {
 				checkout(repository, result);
 			return new Git(repository);
 		} catch (IOException ioe) {
+			ioe.printStackTrace();
 			throw new JGitInternalException(ioe.getMessage(), ioe);
 		} catch (URISyntaxException e) {
 			throw new InvalidRemoteException(MessageFormat.format(

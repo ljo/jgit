@@ -142,7 +142,7 @@ public class ReflogWriter {
 	public ReflogWriter create() throws IOException {
 		FileUtils.mkdir(logsDir);
 		FileUtils.mkdir(logsRefsDir);
-		FileUtils.mkdir(new File(logsRefsDir,
+		FileUtils.mkdir(parent.getFS().resolve(logsRefsDir,
 				R_HEADS.substring(R_REFS.length())));
 		return this;
 	}
@@ -158,9 +158,9 @@ public class ReflogWriter {
 	public File logFor(String name) {
 		if (name.startsWith(R_REFS)) {
 			name = name.substring(R_REFS.length());
-			return new File(logsRefsDir, name);
+			return parent.getFS().resolve(logsRefsDir, name);
 		}
-		return new File(logsDir, name);
+		return parent.getFS().resolve(logsDir, name);
 	}
 
 	/**
@@ -253,7 +253,7 @@ public class ReflogWriter {
 		WriteConfig wc = getRepository().getConfig().get(WriteConfig.KEY);
 		FileOutputStream out;
 		try {
-			out = new FileOutputStream(log, true);
+			out = parent.getFS().fileOutputStream(log, true);
 		} catch (FileNotFoundException err) {
 			final File dir = log.getParentFile();
 			if (dir.exists())
@@ -261,7 +261,7 @@ public class ReflogWriter {
 			if (!dir.mkdirs() && !dir.isDirectory())
 				throw new IOException(MessageFormat.format(
 						JGitText.get().cannotCreateDirectory, dir));
-			out = new FileOutputStream(log, true);
+			out = parent.getFS().fileOutputStream(log, true);
 		}
 		try {
 			if (wc.getFSyncRefFiles()) {

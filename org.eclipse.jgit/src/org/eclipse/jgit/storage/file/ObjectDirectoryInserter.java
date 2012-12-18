@@ -153,7 +153,7 @@ class ObjectDirectoryInserter extends ObjectInserter {
 		boolean delete = true;
 		File tmp = newTempFile();
 		try {
-			FileOutputStream fOut = new FileOutputStream(tmp);
+			FileOutputStream fOut = db.getFS().fileOutputStream(tmp);
 			try {
 				OutputStream out = fOut;
 				if (config.getFSyncObjectFiles())
@@ -192,7 +192,7 @@ class ObjectDirectoryInserter extends ObjectInserter {
 		boolean delete = true;
 		File tmp = newTempFile();
 		try {
-			FileOutputStream fOut = new FileOutputStream(tmp);
+			FileOutputStream fOut = db.getFS().fileOutputStream(tmp);
 			try {
 				OutputStream out = fOut;
 				if (config.getFSyncObjectFiles())
@@ -224,7 +224,7 @@ class ObjectDirectoryInserter extends ObjectInserter {
 	}
 
 	File newTempFile() throws IOException {
-		return File.createTempFile("noz", null, db.getDirectory());
+		return db.getFS().createTempFile("noz", null, db.getDirectory());
 	}
 
 	DeflaterOutputStream compress(final OutputStream out) {

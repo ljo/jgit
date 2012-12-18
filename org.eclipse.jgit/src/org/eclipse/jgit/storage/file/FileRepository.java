@@ -179,7 +179,7 @@ public class FileRepository extends Repository {
 				options.getObjectDirectory(), //
 				options.getAlternateObjectDirectories(), //
 				getFS(), //
-				new File(getDirectory(), Constants.SHALLOW));
+				getFS().resolve(getDirectory(), Constants.SHALLOW));
 
 		if (objectDatabase.exists()) {
 			final long repositoryFormatVersion = getConfig().getLong(
@@ -249,8 +249,8 @@ public class FileRepository extends Repository {
 		refs.create();
 		objectDatabase.create();
 
-		FileUtils.mkdir(new File(getDirectory(), "branches"));
-		FileUtils.mkdir(new File(getDirectory(), "hooks"));
+		FileUtils.mkdir(getFS().resolve(getDirectory(), "branches"));
+		FileUtils.mkdir(getFS().resolve(getDirectory(), "hooks"));
 
 		RefUpdate head = updateRef(Constants.HEAD);
 		head.disableRefLog();
@@ -258,7 +258,7 @@ public class FileRepository extends Repository {
 
 		final boolean fileMode;
 		if (getFS().supportsExecute()) {
-			File tmp = File.createTempFile("try", "execute", getDirectory());
+			File tmp = getFS().createTempFile("try", "execute", getDirectory());
 
 			getFS().setExecute(tmp, true);
 			final boolean on = getFS().canExecute(tmp);

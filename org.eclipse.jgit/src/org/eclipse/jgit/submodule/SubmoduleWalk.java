@@ -172,7 +172,7 @@ public class SubmoduleWalk {
 	 */
 	public static File getSubmoduleDirectory(final Repository parent,
 			final String path) {
-		return new File(parent.getWorkTree(), path);
+		return parent.getFS().resolve(parent.getWorkTree(), path);
 	}
 
 	/**

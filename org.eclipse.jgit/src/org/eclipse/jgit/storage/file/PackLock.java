@@ -66,7 +66,7 @@ public class PackLock {
 	public PackLock(final File packFile, final FS fs) {
 		final File p = packFile.getParentFile();
 		final String n = packFile.getName();
-		keepFile = new File(p, n.substring(0, n.length() - 5) + ".keep");
+		keepFile = fs.resolve(p, n.substring(0, n.length() - 5) + ".keep");
 		this.fs = fs;
 	}
 

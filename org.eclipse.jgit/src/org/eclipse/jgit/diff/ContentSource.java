@@ -61,6 +61,7 @@ import org.eclipse.jgit.treewalk.FileTreeIterator;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.WorkingTreeIterator;
 import org.eclipse.jgit.treewalk.filter.PathFilter;
+import org.eclipse.jgit.util.FS;
 
 /**
  * Supplies the content of a file for {@link DiffFormatter}.
@@ -95,7 +96,7 @@ public abstract class ContentSource {
 	public static ContentSource create(WorkingTreeIterator iterator) {
 		if (iterator instanceof FileTreeIterator) {
 			FileTreeIterator i = (FileTreeIterator) iterator;
-			return new FileSource(i.getDirectory());
+			return new FileSource(i.getFS(), i.getDirectory());
 		}
 		return new WorkingTreeSource(iterator);
 	}
@@ -219,9 +220,11 @@ public abstract class ContentSource {
 	}
 
 	private static class FileSource extends ContentSource {
+		private final FS fs;
 		private final File root;
 
-		FileSource(File root) {
+		FileSource(FS fs, File root) {
+			this.fs = fs;
 			this.root = root;
 		}
 
@@ -249,7 +252,7 @@ public abstract class ContentSource {
 				@Override
 				public ObjectStream openStream() throws MissingObjectException,
 						IOException {
-					final FileInputStream in = new FileInputStream(p);
+					final FileInputStream in = fs.fileInputStream(p);
 					final long sz = in.getChannel().size();
 					final int type = getType();
 					final BufferedInputStream b = new BufferedInputStream(in);

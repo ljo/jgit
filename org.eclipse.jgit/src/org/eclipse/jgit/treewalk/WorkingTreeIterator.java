@@ -1071,7 +1071,8 @@ public abstract class WorkingTreeIterator extends AbstractTreeIterator {
 		private void loadRulesFromFile(IgnoreNode r, File exclude)
 				throws FileNotFoundException, IOException {
 			if (exclude.exists()) {
-				FileInputStream in = new FileInputStream(exclude);
+				FileInputStream in = repository.getFS()
+						.fileInputStream(exclude);
 				try {
 					r.parse(in);
 				} finally {

@@ -60,6 +60,7 @@ import org.eclipse.jgit.lib.AbbreviatedObjectId;
 import org.eclipse.jgit.lib.AnyObjectId;
 import org.eclipse.jgit.lib.MutableObjectId;
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.util.FS;
 import org.eclipse.jgit.util.IO;
 import org.eclipse.jgit.util.NB;
 
@@ -80,7 +81,9 @@ public abstract class PackIndex implements Iterable<PackIndex.MutableEntry> {
 	 * implementation for that format will be constructed and returned to the
 	 * caller. The file may or may not be held open by the returned instance.
 	 * </p>
-	 *
+	 * 
+	 * @param fs
+	 * 
 	 * @param idxFile
 	 *            existing pack .idx to read.
 	 * @return access implementation for the requested file.
@@ -90,8 +93,9 @@ public abstract class PackIndex implements Iterable<PackIndex.MutableEntry> {
 	 *             the file exists but could not be read due to security errors,
 	 *             unrecognized data version, or unexpected data corruption.
 	 */
-	public static PackIndex open(final File idxFile) throws IOException {
-		final FileInputStream fd = new FileInputStream(idxFile);
+	public static PackIndex open(final FS fs, final File idxFile)
+			throws IOException {
+		final FileInputStream fd = fs.fileInputStream(idxFile);
 		try {
 			return read(fd);
 		} catch (IOException ioe) {

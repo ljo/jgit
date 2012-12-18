@@ -79,6 +79,7 @@ import org.eclipse.jgit.revwalk.ObjectWalk;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.storage.file.LockFile;
 import org.eclipse.jgit.storage.file.PackLock;
+import org.eclipse.jgit.util.FS;
 
 class FetchProcess {
 	/** Transport we will fetch over. */
@@ -316,8 +317,9 @@ class FetchProcess {
 		File meta = transport.local.getDirectory();
 		if (meta == null)
 			return;
-		final LockFile lock = new LockFile(new File(meta, "FETCH_HEAD"),
-				transport.local.getFS());
+
+		final FS fs = transport.local.getFS();
+		final LockFile lock = new LockFile(fs.resolve(meta, "FETCH_HEAD"), fs);
 		try {
 			if (lock.lock()) {
 				final Writer w = new OutputStreamWriter(lock.getOutputStream());

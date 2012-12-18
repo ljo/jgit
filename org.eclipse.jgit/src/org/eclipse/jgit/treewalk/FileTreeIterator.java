@@ -47,7 +47,6 @@
 package org.eclipse.jgit.treewalk;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -128,6 +127,13 @@ public class FileTreeIterator extends WorkingTreeIterator {
 		init(entries());
 	}
 
+	/**
+	 * @return FS
+	 */
+	public FS getFS() {
+		return fs;
+	}
+
 	@Override
 	public AbstractTreeIterator createSubtreeIterator(final ObjectReader reader)
 			throws IncorrectObjectTypeException, IOException {
@@ -148,6 +154,7 @@ public class FileTreeIterator extends WorkingTreeIterator {
 	 * Wrapper for a standard Java IO file
 	 */
 	static public class FileEntry extends Entry {
+		final FS _fs;
 		final File file;
 
 		private final FileMode mode;
@@ -166,9 +173,10 @@ public class FileTreeIterator extends WorkingTreeIterator {
 		 */
 		public FileEntry(final File f, FS fs) {
 			file = f;
+			_fs = fs;
 
 			if (f.isDirectory()) {
-				if (new File(f, Constants.DOT_GIT).exists())
+				if (fs.resolve(f, Constants.DOT_GIT).exists())
 					mode = FileMode.GITLINK;
 				else
 					mode = FileMode.TREE;
@@ -204,7 +212,7 @@ public class FileTreeIterator extends WorkingTreeIterator {
 
 		@Override
 		public InputStream openInputStream() throws IOException {
-			return new FileInputStream(file);
+			return _fs.fileInputStream(file);
 		}
 
 		/**

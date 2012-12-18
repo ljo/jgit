@@ -44,7 +44,6 @@
 package org.eclipse.jgit.merge;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -242,7 +241,7 @@ public class ResolveMerger extends ThreeWayMerger {
 		try {
 			for (Map.Entry<String, DirCacheEntry> entry : toBeCheckedOut
 					.entrySet()) {
-				File f = new File(db.getWorkTree(), entry.getKey());
+				File f = db.getFS().resolve(db.getWorkTree(), entry.getKey());
 				createDir(f.getParentFile());
 				DirCacheCheckout.checkoutEntry(db, f, entry.getValue(), r);
 				modifiedFiles.add(entry.getKey());
@@ -252,7 +251,7 @@ public class ResolveMerger extends ThreeWayMerger {
 			// of a non-empty directory, for which delete() would fail.
 			for (int i = toBeDeleted.size() - 1; i >= 0; i--) {
 				String fileName = toBeDeleted.get(i);
-				File f = new File(db.getWorkTree(), fileName);
+				File f = db.getFS().resolve(db.getWorkTree(), fileName);
 				if (!f.delete())
 					failingPaths.put(fileName,
 							MergeFailureReason.COULD_NOT_DELETE);
@@ -298,7 +297,8 @@ public class ResolveMerger extends ThreeWayMerger {
 		while(mpathsIt.hasNext()) {
 			String mpath=mpathsIt.next();
 			DirCacheEntry entry = dc.getEntry(mpath);
-			FileOutputStream fos = new FileOutputStream(new File(db.getWorkTree(), mpath));
+			FileOutputStream fos = db.getFS().fileOutputStream(
+					db.getFS().resolve(db.getWorkTree(), mpath));
 			try {
 				or.open(entry.getObjectId()).copyTo(fos);
 			} finally {
@@ -678,7 +678,7 @@ public class ResolveMerger extends ThreeWayMerger {
 					: FileMode.fromBits(newMode));
 			dce.setLastModified(of.lastModified());
 			dce.setLength((int) of.length());
-			InputStream is = new FileInputStream(of);
+			InputStream is = db.getFS().fileInputStream(of);
 			try {
 				dce.setObjectId(getObjectInserter().insert(
 				    Constants.OBJ_BLOB, of.length(), is));
@@ -714,11 +714,11 @@ public class ResolveMerger extends ThreeWayMerger {
 				// support write operations
 				throw new UnsupportedOperationException();
 
-			of = new File(workTree, tw.getPathString());
+			of = db.getFS().resolve(workTree, tw.getPathString());
 			File parentFolder = of.getParentFile();
 			if (!parentFolder.exists())
 				parentFolder.mkdirs();
-			fos = new FileOutputStream(of);
+			fos = db.getFS().fileOutputStream(of);
 			try {
 				fmt.formatMerge(fos, result, Arrays.asList(commitNames),
 						Constants.CHARACTER_ENCODING);
@@ -728,8 +728,8 @@ public class ResolveMerger extends ThreeWayMerger {
 		} else if (!result.containsConflicts()) {
 			// When working inCore, only trivial merges can be handled,
 			// so we generate objects only in conflict free cases
-			of = File.createTempFile("merge_", "_temp", null);
-			fos = new FileOutputStream(of);
+			of = db.getFS().createTempFile("merge_", "_temp", null);
+			fos = db.getFS().fileOutputStream(of);
 			try {
 				fmt.formatMerge(fos, result, Arrays.asList(commitNames),
 						Constants.CHARACTER_ENCODING);

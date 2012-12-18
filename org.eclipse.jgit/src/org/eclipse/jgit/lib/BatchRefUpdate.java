@@ -272,6 +272,7 @@ public class BatchRefUpdate {
 					}
 				}
 			} catch (IOException err) {
+				err.printStackTrace();
 				cmd.setResult(REJECTED_OTHER_REASON, MessageFormat.format(
 						JGitText.get().lockError, err.getMessage()));
 			}

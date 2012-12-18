@@ -423,7 +423,7 @@ public class DirCacheCheckout {
 			// their parent folders
 			for (int i = removed.size() - 1; i >= 0; i--) {
 				String r = removed.get(i);
-				file = new File(repo.getWorkTree(), r);
+				file = repo.getFS().resolve(repo.getWorkTree(), r);
 				if (!file.delete() && file.exists()) {
 					// The list of stuff to delete comes from the index
 					// which will only contain a directory if it is
@@ -443,7 +443,7 @@ public class DirCacheCheckout {
 
 			for (String path : updated.keySet()) {
 				// ... create/overwrite this file ...
-				file = new File(repo.getWorkTree(), path);
+				file = repo.getFS().resolve(repo.getWorkTree(), path);
 				if (!file.getParentFile().mkdirs()) {
 					// ignore
 				}
@@ -868,14 +868,14 @@ public class DirCacheCheckout {
 	private void cleanUpConflicts() throws CheckoutConflictException {
 		// TODO: couldn't we delete unsaved worktree content here?
 		for (String c : conflicts) {
-			File conflict = new File(repo.getWorkTree(), c);
+			File conflict = repo.getFS().resolve(repo.getWorkTree(), c);
 			if (!conflict.delete())
 				throw new CheckoutConflictException(MessageFormat.format(
 						JGitText.get().cannotDeleteFile, c));
 			removeEmptyParents(conflict);
 		}
 		for (String r : removed) {
-			File file = new File(repo.getWorkTree(), r);
+			File file = repo.getFS().resolve(repo.getWorkTree(), r);
 			if (!file.delete())
 				throw new CheckoutConflictException(
 						MessageFormat.format(JGitText.get().cannotDeleteFile,
@@ -965,9 +965,10 @@ public class DirCacheCheckout {
 		ObjectLoader ol = or.open(entry.getObjectId());
 		File parentDir = f.getParentFile();
 		parentDir.mkdirs();
-		File tmpFile = File.createTempFile("._" + f.getName(), null, parentDir);
+		File tmpFile = repo.getFS().createTempFile("._" + f.getName(), null,
+				parentDir);
 		WorkingTreeOptions opt = repo.getConfig().get(WorkingTreeOptions.KEY);
-		FileOutputStream rawChannel = new FileOutputStream(tmpFile);
+		FileOutputStream rawChannel = repo.getFS().fileOutputStream(tmpFile);
 		OutputStream channel;
 		if (opt.getAutoCRLF() == AutoCRLF.TRUE)
 			channel = new AutoCRLFOutputStream(rawChannel);

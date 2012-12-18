@@ -48,9 +48,9 @@ import java.util.concurrent.Callable;
 
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.JGitInternalException;
+import org.eclipse.jgit.lib.BaseRepositoryBuilder;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.Repository;
-import org.eclipse.jgit.lib.RepositoryBuilder;
 
 /**
  * Create an empty git repository or reinitalize an existing one
@@ -70,21 +70,22 @@ public class InitCommand implements Callable<Git> {
 	 */
 	public Git call() throws GitAPIException {
 		try {
-			RepositoryBuilder builder = new RepositoryBuilder();
+			BaseRepositoryBuilder<? extends BaseRepositoryBuilder, ? extends Repository> builder = Git
+					.getRepositoryBuilder();
 			if (bare)
 				builder.setBare();
 			builder.readEnvironment();
 			if (directory != null) {
 				File d = directory;
 				if (!bare)
-					d = new File(d, Constants.DOT_GIT);
+					d = builder.getFS().resolve(d, Constants.DOT_GIT);
 				builder.setGitDir(d);
 			} else if (builder.getGitDir() == null) {
 				File d = new File(".");
 				if (d.getParentFile() != null)
 					d = d.getParentFile();
 				if (!bare)
-					d = new File(d, Constants.DOT_GIT);
+					d = builder.getFS().resolve(d, Constants.DOT_GIT);
 				builder.setGitDir(d);
 			}
 			Repository repository = builder.build();

@@ -100,7 +100,8 @@ public abstract class SystemReader {
 
 		public FileBasedConfig openUserConfig(Config parent, FS fs) {
 			final File home = fs.userHome();
-			return new FileBasedConfig(parent, new File(home, ".gitconfig"), fs);
+			return new FileBasedConfig(parent, fs.resolve(home, ".gitconfig"),
+					fs);
 		}
 
 		public String getHostname() {

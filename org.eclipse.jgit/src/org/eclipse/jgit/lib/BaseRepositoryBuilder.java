@@ -100,9 +100,9 @@ public class BaseRepositoryBuilder<B extends BaseRepositoryBuilder, R extends Re
 				&& ref[7] == ' ';
 	}
 
-	private static File getSymRef(File workTree, File dotGit)
+	private static File getSymRef(FS fs, File workTree, File dotGit)
 			throws IOException {
-		byte[] content = IO.readFully(dotGit);
+		byte[] content = IO.readFully(fs, dotGit);
 		if (!isSymRef(content))
 			throw new IOException(MessageFormat.format(
 					JGitText.get().invalidGitdirRef, dotGit.getAbsolutePath()));
@@ -116,11 +116,11 @@ public class BaseRepositoryBuilder<B extends BaseRepositoryBuilder, R extends Re
 					JGitText.get().invalidGitdirRef, dotGit.getAbsolutePath()));
 
 		String gitdirPath = RawParseUtils.decode(content, pathStart, lineEnd);
-		File gitdirFile = new File(gitdirPath);
+		File gitdirFile = fs.resolve(workTree, gitdirPath);
 		if (gitdirFile.isAbsolute())
 			return gitdirFile;
 		else
-			return new File(workTree, gitdirPath).getCanonicalFile();
+			return fs.resolve(workTree, gitdirPath).getCanonicalFile();
 	}
 
 	private FS fs;
@@ -510,13 +510,13 @@ public class BaseRepositoryBuilder<B extends BaseRepositoryBuilder, R extends Re
 		if (getGitDir() == null) {
 			FS tryFS = safeFS();
 			while (current != null) {
-				File dir = new File(current, DOT_GIT);
-				if (FileKey.isGitRepository(dir, tryFS)) {
+				File dir = tryFS.resolve(current, DOT_GIT);
+				if (FileKey.isGitRepository(tryFS, dir)) {
 					setGitDir(dir);
 					break;
 				} else if (dir.isFile())
 					try {
-						setGitDir(getSymRef(current, dir));
+						setGitDir(getSymRef(tryFS, current, dir));
 						break;
 					} catch (IOException ignored) {
 						// Continue searching if gitdir ref isn't found
@@ -590,14 +590,15 @@ public class BaseRepositoryBuilder<B extends BaseRepositoryBuilder, R extends Re
 	 *             the repository could not be accessed
 	 */
 	protected void setupGitDir() throws IOException {
+		FS tryFS = safeFS();
 		// No gitDir? Try to assume its under the workTree or a ref to another
 		// location
 		if (getGitDir() == null && getWorkTree() != null) {
-			File dotGit = new File(getWorkTree(), DOT_GIT);
+			File dotGit = tryFS.resolve(getWorkTree(), DOT_GIT);
 			if (!dotGit.isFile())
 				setGitDir(dotGit);
 			else
-				setGitDir(getSymRef(getWorkTree(), dotGit));
+				setGitDir(getSymRef(tryFS, getWorkTree(), dotGit));
 		}
 	}
 
@@ -628,7 +629,7 @@ public class BaseRepositoryBuilder<B extends BaseRepositoryBuilder, R extends Re
 			if (getGitDir() == null)
 				setGitDir(getWorkTree().getParentFile());
 			if (getIndexFile() == null)
-				setIndexFile(new File(getGitDir(), "index"));
+				setIndexFile(getFS().resolve(getGitDir(), "index"));
 		}
 	}
 

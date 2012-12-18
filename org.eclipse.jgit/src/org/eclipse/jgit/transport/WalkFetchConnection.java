@@ -800,8 +800,12 @@ class WalkFetchConnection extends BaseFetchConnection {
 				tn = tn.substring(0, tn.length() - 4);
 
 			if (local.getObjectDatabase() instanceof ObjectDirectory) {
-				tmpIdx = new File(((ObjectDirectory) local.getObjectDatabase())
-						.getDirectory(), "walk-" + tn + ".walkidx");
+				tmpIdx = local
+						.getFS()
+						.resolve(
+								((ObjectDirectory) local.getObjectDatabase())
+										.getDirectory(),
+								"walk-" + tn + ".walkidx");
 			}
 		}
 
@@ -812,7 +816,7 @@ class WalkFetchConnection extends BaseFetchConnection {
 				tmpIdx = File.createTempFile("jgit-walk-", ".idx");
 			else if (tmpIdx.isFile()) {
 				try {
-					index = PackIndex.open(tmpIdx);
+					index = PackIndex.open(local.getFS(), tmpIdx);
 					return;
 				} catch (FileNotFoundException err) {
 					// Fall through and get the file.
@@ -825,7 +829,8 @@ class WalkFetchConnection extends BaseFetchConnection {
 					s.length < 0 ? ProgressMonitor.UNKNOWN
 							: (int) (s.length / 1024));
 			try {
-				final FileOutputStream fos = new FileOutputStream(tmpIdx);
+				final FileOutputStream fos = local.getFS().fileOutputStream(
+						tmpIdx);
 				try {
 					final byte[] buf = new byte[2048];
 					int cnt;
@@ -850,7 +855,7 @@ class WalkFetchConnection extends BaseFetchConnection {
 			}
 
 			try {
-				index = PackIndex.open(tmpIdx);
+				index = PackIndex.open(local.getFS(), tmpIdx);
 			} catch (IOException e) {
 				FileUtils.delete(tmpIdx);
 				throw e;

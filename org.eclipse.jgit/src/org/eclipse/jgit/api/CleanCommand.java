@@ -101,7 +101,7 @@ public class CleanCommand extends GitCommand<Set<String>> {
 					status.getUntrackedFolders());
 
 			for (String p : status.getIgnoredNotInIndex()) {
-				File f = new File(repo.getWorkTree(), p);
+				File f = repo.getFS().resolve(repo.getWorkTree(), p);
 				if (f.isFile()) {
 					untrackedAndIgnoredFiles.add(p);
 				} else if (f.isDirectory()) {
@@ -121,7 +121,8 @@ public class CleanCommand extends GitCommand<Set<String>> {
 			for (String file : notIgnoredFiles)
 				if (paths.isEmpty() || paths.contains(file)) {
 					if (!dryRun)
-						FileUtils.delete(new File(repo.getWorkTree(), file));
+						FileUtils
+								.delete(repo.getFS().resolve(repo.getWorkTree(), file));
 					files.add(file);
 				}
 
@@ -129,7 +130,8 @@ public class CleanCommand extends GitCommand<Set<String>> {
 				for (String dir : notIgnoredDirs)
 					if (paths.isEmpty() || paths.contains(dir)) {
 						if (!dryRun)
-							FileUtils.delete(new File(repo.getWorkTree(), dir),
+							FileUtils.delete(
+									repo.getFS().resolve(repo.getWorkTree(), dir),
 									FileUtils.RECURSIVE);
 						files.add(dir + "/");
 					}

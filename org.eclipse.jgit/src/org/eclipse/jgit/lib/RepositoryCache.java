@@ -318,7 +318,7 @@ public class RepositoryCache {
 		}
 
 		public Repository open(final boolean mustExist) throws IOException {
-			if (mustExist && !isGitRepository(path, fs))
+			if (mustExist && !isGitRepository(fs, path))
 				throw new RepositoryNotFoundException(path);
 			return new FileRepository(path);
 		}
@@ -353,21 +353,21 @@ public class RepositoryCache {
 		 *         it doesn't look enough like a Git directory to really be a
 		 *         Git directory.
 		 */
-		public static boolean isGitRepository(final File dir, FS fs) {
+		public static boolean isGitRepository(final FS fs, final File dir) {
 			return fs.resolve(dir, "objects").exists()
 					&& fs.resolve(dir, "refs").exists()
-					&& isValidHead(new File(dir, Constants.HEAD));
+					&& isValidHead(fs, fs.resolve(dir, Constants.HEAD));
 		}
 
-		private static boolean isValidHead(final File head) {
-			final String ref = readFirstLine(head);
+		private static boolean isValidHead(final FS fs, final File head) {
+			final String ref = readFirstLine(fs, head);
 			return ref != null
 					&& (ref.startsWith("ref: refs/") || ObjectId.isId(ref));
 		}
 
-		private static String readFirstLine(final File head) {
+		private static String readFirstLine(final FS fs, final File head) {
 			try {
-				final byte[] buf = IO.readFully(head, 4096);
+				final byte[] buf = IO.readFully(fs, head, 4096);
 				int n = buf.length;
 				if (n == 0)
 					return null;
@@ -399,15 +399,16 @@ public class RepositoryCache {
 		 *         null if there is no suitable match.
 		 */
 		public static File resolve(final File directory, FS fs) {
-			if (isGitRepository(directory, fs))
+			if (isGitRepository(fs, directory))
 				return directory;
-			if (isGitRepository(new File(directory, Constants.DOT_GIT), fs))
-				return new File(directory, Constants.DOT_GIT);
+			if (isGitRepository(fs, fs.resolve(directory, Constants.DOT_GIT)))
+				return fs.resolve(directory, Constants.DOT_GIT);
 
 			final String name = directory.getName();
 			final File parent = directory.getParentFile();
-			if (isGitRepository(new File(parent, name + Constants.DOT_GIT_EXT), fs))
-				return new File(parent, name + Constants.DOT_GIT_EXT);
+			if (isGitRepository(fs,
+					fs.resolve(parent, name + Constants.DOT_GIT_EXT)))
+				return fs.resolve(parent, name + Constants.DOT_GIT_EXT);
 			return null;
 		}
 	}

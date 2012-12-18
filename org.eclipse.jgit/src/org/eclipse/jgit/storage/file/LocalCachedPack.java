@@ -129,7 +129,8 @@ class LocalCachedPack extends CachedPack {
 	}
 
 	private String getPackFilePath(String packName) {
-		final File packDir = new File(odb.getDirectory(), "pack");
-		return new File(packDir, "pack-" + packName + ".pack").getPath();
+		final File packDir = odb.getFS().resolve(odb.getDirectory(), "pack");
+		return odb.getFS().resolve(packDir, "pack-" + packName + ".pack")
+				.getPath();
 	}
 }

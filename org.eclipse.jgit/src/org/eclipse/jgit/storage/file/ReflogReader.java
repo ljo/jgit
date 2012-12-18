@@ -60,6 +60,9 @@ import org.eclipse.jgit.util.RawParseUtils;
  * Utility for reading reflog entries
  */
 public class ReflogReader {
+
+	private Repository db;
+
 	private File logName;
 
 	/**
@@ -67,7 +70,9 @@ public class ReflogReader {
 	 * @param refname
 	 */
 	public ReflogReader(Repository db, String refname) {
-		logName = new File(db.getDirectory(), Constants.LOGS + '/' + refname);
+		this.db = db;
+		logName = db.getFS().resolve(db.getDirectory(),
+				Constants.LOGS + '/' + refname);
 	}
 
 	/**
@@ -102,7 +107,7 @@ public class ReflogReader {
 
 		final byte[] log;
 		try {
-			log = IO.readFully(logName);
+			log = IO.readFully(db.getFS(), logName);
 		} catch (FileNotFoundException e) {
 			return null;
 		}
@@ -127,7 +132,7 @@ public class ReflogReader {
 	public List<ReflogEntry> getReverseEntries(int max) throws IOException {
 		final byte[] log;
 		try {
-			log = IO.readFully(logName);
+			log = IO.readFully(db.getFS(), logName);
 		} catch (FileNotFoundException e) {
 			return Collections.emptyList();
 		}

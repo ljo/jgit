@@ -1068,26 +1068,26 @@ public abstract class Repository {
 			return RepositoryState.BARE;
 
 		// Pre Git-1.6 logic
-		if (new File(getWorkTree(), ".dotest").exists())
+		if (fs.resolve(getWorkTree(), ".dotest").exists())
 			return RepositoryState.REBASING;
-		if (new File(getDirectory(), ".dotest-merge").exists())
+		if (fs.resolve(getDirectory(), ".dotest-merge").exists())
 			return RepositoryState.REBASING_INTERACTIVE;
 
 		// From 1.6 onwards
-		if (new File(getDirectory(),"rebase-apply/rebasing").exists())
+		if (fs.resolve(getDirectory(), "rebase-apply/rebasing").exists())
 			return RepositoryState.REBASING_REBASING;
-		if (new File(getDirectory(),"rebase-apply/applying").exists())
+		if (fs.resolve(getDirectory(), "rebase-apply/applying").exists())
 			return RepositoryState.APPLY;
-		if (new File(getDirectory(),"rebase-apply").exists())
+		if (fs.resolve(getDirectory(), "rebase-apply").exists())
 			return RepositoryState.REBASING;
 
-		if (new File(getDirectory(),"rebase-merge/interactive").exists())
+		if (fs.resolve(getDirectory(), "rebase-merge/interactive").exists())
 			return RepositoryState.REBASING_INTERACTIVE;
-		if (new File(getDirectory(),"rebase-merge").exists())
+		if (fs.resolve(getDirectory(), "rebase-merge").exists())
 			return RepositoryState.REBASING_MERGE;
 
 		// Both versions
-		if (new File(getDirectory(), Constants.MERGE_HEAD).exists()) {
+		if (fs.resolve(getDirectory(), Constants.MERGE_HEAD).exists()) {
 			// we are merging - now check whether we have unmerged paths
 			try {
 				if (!readDirCache().hasUnmergedPaths()) {
@@ -1102,10 +1102,10 @@ public abstract class Repository {
 			return RepositoryState.MERGING;
 		}
 
-		if (new File(getDirectory(), "BISECT_LOG").exists())
+		if (fs.resolve(getDirectory(), "BISECT_LOG").exists())
 			return RepositoryState.BISECTING;
 
-		if (new File(getDirectory(), Constants.CHERRY_PICK_HEAD).exists()) {
+		if (fs.resolve(getDirectory(), Constants.CHERRY_PICK_HEAD).exists()) {
 			try {
 				if (!readDirCache().hasUnmergedPaths()) {
 					// no unmerged paths
@@ -1289,7 +1289,7 @@ public abstract class Repository {
 	 * @throws IOException
 	 */
 	public void writeMergeCommitMsg(String msg) throws IOException {
-		File mergeMsgFile = new File(gitDir, Constants.MERGE_MSG);
+		File mergeMsgFile = fs.resolve(gitDir, Constants.MERGE_MSG);
 		writeCommitMsg(mergeMsgFile, msg);
 	}
 
@@ -1438,7 +1438,7 @@ public abstract class Repository {
 	 * @throws IOException
 	 */
 	public void writeSquashCommitMsg(String msg) throws IOException {
-		File squashMsgFile = new File(gitDir, Constants.SQUASH_MSG);
+		File squashMsgFile = fs.resolve(gitDir, Constants.SQUASH_MSG);
 		writeCommitMsg(squashMsgFile, msg);
 	}
 
@@ -1446,9 +1446,9 @@ public abstract class Repository {
 		if (isBare() || getDirectory() == null)
 			throw new NoWorkTreeException();
 
-		File mergeMsgFile = new File(getDirectory(), msgFilename);
+		File mergeMsgFile = getFS().resolve(getDirectory(), msgFilename);
 		try {
-			return RawParseUtils.decode(IO.readFully(mergeMsgFile));
+			return RawParseUtils.decode(IO.readFully(getFS(), mergeMsgFile));
 		} catch (FileNotFoundException e) {
 			// the file has disappeared in the meantime ignore it
 			return null;
@@ -1457,7 +1457,7 @@ public abstract class Repository {
 
 	private void writeCommitMsg(File msgFile, String msg) throws IOException {
 		if (msg != null) {
-			FileOutputStream fos = new FileOutputStream(msgFile);
+			FileOutputStream fos = getFS().fileOutputStream(msgFile);
 			try {
 				fos.write(msg.getBytes(Constants.CHARACTER_ENCODING));
 			} finally {
@@ -1476,9 +1476,9 @@ public abstract class Repository {
 	 * @throws IOException
 	 */
 	private byte[] readGitDirectoryFile(String filename) throws IOException {
-		File file = new File(getDirectory(), filename);
+		File file = getFS().resolve(getDirectory(), filename);
 		try {
-			byte[] raw = IO.readFully(file);
+			byte[] raw = IO.readFully(getFS(), file);
 			return raw.length > 0 ? raw : null;
 		} catch (FileNotFoundException notFound) {
 			return null;
@@ -1497,10 +1497,10 @@ public abstract class Repository {
 	 */
 	private void writeHeadsFile(List<ObjectId> heads, String filename)
 			throws FileNotFoundException, IOException {
-		File headsFile = new File(getDirectory(), filename);
+		File headsFile = fs.resolve(getDirectory(), filename);
 		if (heads != null) {
-			BufferedOutputStream bos = new SafeBufferedOutputStream(
-					new FileOutputStream(headsFile));
+			BufferedOutputStream bos = new SafeBufferedOutputStream(getFS()
+					.fileOutputStream(headsFile));
 			try {
 				for (ObjectId id : heads) {
 					id.copyTo(bos);

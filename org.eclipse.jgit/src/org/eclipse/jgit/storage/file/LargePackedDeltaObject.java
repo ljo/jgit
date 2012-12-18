@@ -45,7 +45,6 @@ package org.eclipse.jgit.storage.file;
 
 import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.zip.DataFormatException;
@@ -188,7 +187,8 @@ class LargePackedDeltaObject extends ObjectLoader {
 		long mySize = getSize();
 		final ObjectDirectoryInserter odi = db.newInserter();
 		final File tmp = odi.newTempFile();
-		DeflaterOutputStream dOut = odi.compress(new FileOutputStream(tmp));
+		DeflaterOutputStream dOut = odi.compress(db.getFS().fileOutputStream(
+				tmp));
 		odi.writeHeader(dOut, myType, mySize);
 
 		in = new TeeInputStream(in, dOut);

@@ -146,7 +146,7 @@ public class ApplyCommand extends GitCommand<ApplyResult> {
 					break;
 				case COPY:
 					f = getFile(fh.getOldPath(), false);
-					byte[] bs = IO.readFully(f);
+					byte[] bs = IO.readFully(repo.getFS(), f);
 					FileWriter fw = new FileWriter(getFile(fh.getNewPath(),
 							true));
 					fw.write(new String(bs));
@@ -164,7 +164,8 @@ public class ApplyCommand extends GitCommand<ApplyResult> {
 
 	private File getFile(String path, boolean create)
 			throws PatchApplyException {
-		File f = new File(getRepository().getWorkTree(), path);
+		File f = getRepository().getFS().resolve(getRepository().getWorkTree(),
+				path);
 		if (create)
 			try {
 				File parent = f.getParentFile();
@@ -185,7 +186,7 @@ public class ApplyCommand extends GitCommand<ApplyResult> {
 	 */
 	private void apply(File f, FileHeader fh)
 			throws IOException, PatchApplyException {
-		RawText rt = new RawText(f);
+		RawText rt = new RawText(repo.getFS(), f);
 		List<String> oldLines = new ArrayList<String>(rt.size());
 		for (int i = 0; i < rt.size(); i++)
 			oldLines.add(rt.getString(i));

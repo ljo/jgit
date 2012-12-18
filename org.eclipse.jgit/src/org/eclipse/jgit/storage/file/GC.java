@@ -44,7 +44,6 @@
 package org.eclipse.jgit.storage.file;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
@@ -85,6 +84,7 @@ import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.storage.pack.PackWriter;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.TreeFilter;
+import org.eclipse.jgit.util.FS;
 import org.eclipse.jgit.util.FileUtils;
 import org.eclipse.jgit.util.GitDateParser;
 
@@ -219,7 +219,7 @@ public class GC {
 					pm.update(1);
 					if (d.length() != 2)
 						continue;
-					String[] entries = new File(objects, d).list();
+					String[] entries = repo.getFS().resolve(objects, d).list();
 					if (entries == null)
 						continue;
 					for (String e : entries) {
@@ -296,7 +296,8 @@ public class GC {
 					pm.update(1);
 					if (d.length() != 2)
 						continue;
-					File[] entries = new File(objects, d).listFiles();
+					File[] entries = repo.getFS().resolve(objects, d)
+							.listFiles();
 					if (entries == null)
 						continue;
 					for (File f : entries) {
@@ -649,11 +650,15 @@ public class GC {
 			if (pw.getObjectCount() == 0)
 				return null;
 
+			final FS fs = repo.getFS();
+
 			// create temporary files
 			String id = pw.computeName().getName();
-			File packdir = new File(repo.getObjectsDirectory(), "pack");
-			tmpPack = File.createTempFile("gc_", ".pack_tmp", packdir);
-			tmpIdx = new File(packdir, tmpPack.getName().substring(0,
+			File packdir = fs.resolve(repo.getObjectsDirectory(), "pack");
+			tmpPack = fs.createTempFile("gc_", ".pack_tmp", packdir);
+			tmpIdx = fs.resolve(
+					packdir,
+					tmpPack.getName().substring(0,
 					tmpPack.getName().lastIndexOf('.'))
 					+ ".idx_tmp");
 
@@ -663,7 +668,7 @@ public class GC {
 
 			// write the packfile
 			@SuppressWarnings("resource" /* java 7 */)
-			FileChannel channel = new FileOutputStream(tmpPack).getChannel();
+			FileChannel channel = fs.fileOutputStream(tmpPack).getChannel();
 			OutputStream channelStream = Channels.newOutputStream(channel);
 			try {
 				pw.writePack(pm, pm, channelStream);
@@ -675,7 +680,7 @@ public class GC {
 
 			// write the packindex
 			@SuppressWarnings("resource")
-			FileChannel idxChannel = new FileOutputStream(tmpIdx).getChannel();
+			FileChannel idxChannel = fs.fileOutputStream(tmpIdx).getChannel();
 			OutputStream idxStream = Channels.newOutputStream(idxChannel);
 			try {
 				pw.writeIndex(idxStream);
@@ -696,7 +701,7 @@ public class GC {
 					return null;
 				delete = false;
 				if (!tmpIdx.renameTo(realIdx)) {
-					File newIdx = new File(realIdx.getParentFile(),
+					File newIdx = fs.resolve(realIdx.getParentFile(),
 							realIdx.getName() + ".new");
 					if (!tmpIdx.renameTo(newIdx))
 						newIdx = tmpIdx;
@@ -721,8 +726,8 @@ public class GC {
 	}
 
 	private File nameFor(String name, String ext) {
-		File packdir = new File(repo.getObjectsDirectory(), "pack");
-		return new File(packdir, "pack-" + name + ext);
+		File packdir = repo.getFS().resolve(repo.getObjectsDirectory(), "pack");
+		return repo.getFS().resolve(packdir, "pack-" + name + ext);
 	}
 
 	/**
@@ -789,7 +794,7 @@ public class GC {
 			for (String d : fanout) {
 				if (d.length() != 2)
 					continue;
-				File[] entries = new File(objDir, d).listFiles();
+				File[] entries = repo.getFS().resolve(objDir, d).listFiles();
 				if (entries == null)
 					continue;
 				for (File f : entries) {

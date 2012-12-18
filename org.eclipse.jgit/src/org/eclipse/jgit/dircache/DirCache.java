@@ -405,7 +405,7 @@ public class DirCache {
 			clear();
 		else if (snapshot == null || snapshot.isModified(liveFile)) {
 			try {
-				final FileInputStream inStream = new FileInputStream(liveFile);
+				final FileInputStream inStream = fs.fileInputStream(liveFile);
 				try {
 					clear();
 					readFrom(inStream);

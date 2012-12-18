@@ -48,7 +48,6 @@ package org.eclipse.jgit.storage.file;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -400,7 +399,7 @@ public class UnpackedObject {
 				IOException {
 			InputStream in;
 			try {
-				in = buffer(new FileInputStream(path));
+				in = buffer(source.getFS().fileInputStream(path));
 			} catch (FileNotFoundException gone) {
 				// If the loose file no longer exists, it may have been
 				// moved into a pack file in the mean time. Try again

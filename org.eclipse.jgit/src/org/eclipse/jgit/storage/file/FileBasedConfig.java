@@ -139,7 +139,7 @@ public class FileBasedConfig extends StoredConfig {
 		final FileSnapshot oldSnapshot = snapshot;
 		final FileSnapshot newSnapshot = FileSnapshot.save(getFile());
 		try {
-			final byte[] in = IO.readFully(getFile());
+			final byte[] in = IO.readFully(fs, getFile());
 			final ObjectId newHash = hash(in);
 			if (hash.equals(newHash)) {
 				if (oldSnapshot.equals(newSnapshot))

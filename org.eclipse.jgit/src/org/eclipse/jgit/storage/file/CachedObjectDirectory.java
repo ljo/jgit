@@ -95,7 +95,7 @@ class CachedObjectDirectory extends FileObjectDatabase {
 		for (String d : fanout) {
 			if (d.length() != 2)
 				continue;
-			String[] entries = new File(objects, d).list();
+			String[] entries = wrapped.getFS().resolve(objects, d).list();
 			if (entries == null)
 				continue;
 			for (String e : entries) {

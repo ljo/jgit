@@ -75,6 +75,7 @@ import org.eclipse.jgit.lib.ObjectLoader;
 import org.eclipse.jgit.storage.pack.BinaryDelta;
 import org.eclipse.jgit.storage.pack.ObjectToPack;
 import org.eclipse.jgit.storage.pack.PackOutputStream;
+import org.eclipse.jgit.util.FS;
 import org.eclipse.jgit.util.LongList;
 import org.eclipse.jgit.util.NB;
 import org.eclipse.jgit.util.RawParseUtils;
@@ -91,6 +92,8 @@ public class PackFile implements Iterable<PackIndex.MutableEntry> {
 			return b.packLastModified - a.packLastModified;
 		}
 	};
+
+	private final FS fs;
 
 	private final File idxFile;
 
@@ -135,12 +138,15 @@ public class PackFile implements Iterable<PackIndex.MutableEntry> {
 	/**
 	 * Construct a reader for an existing, pre-indexed packfile.
 	 *
+	 * @param fs
+	 *
 	 * @param idxFile
 	 *            path of the <code>.idx</code> file listing the contents.
 	 * @param packFile
 	 *            path of the <code>.pack</code> file holding the data.
 	 */
-	public PackFile(final File idxFile, final File packFile) {
+	public PackFile(FS fs, final File idxFile, final File packFile) {
+		this.fs = fs;
 		this.idxFile = idxFile;
 		this.packFile = packFile;
 		this.packLastModified = (int) (packFile.lastModified() >> 10);
@@ -158,7 +164,7 @@ public class PackFile implements Iterable<PackIndex.MutableEntry> {
 				throw new PackInvalidException(packFile);
 
 			try {
-				final PackIndex idx = PackIndex.open(idxFile);
+				final PackIndex idx = PackIndex.open(fs, idxFile);
 
 				if (packChecksum == null)
 					packChecksum = idx.packChecksum;
@@ -226,7 +232,7 @@ public class PackFile implements Iterable<PackIndex.MutableEntry> {
 	 */
 	public boolean shouldBeKept() {
 		if (keepFile == null)
-			keepFile = new File(packFile.getPath() + ".keep");
+			keepFile = fs.resolve(packFile.getPath() + ".keep");
 		return keepFile.exists();
 	}
 
@@ -589,7 +595,7 @@ public class PackFile implements Iterable<PackIndex.MutableEntry> {
 			if (invalid)
 				throw new PackInvalidException(packFile);
 			synchronized (readLock) {
-				fd = new RandomAccessFile(packFile, "r");
+				fd = fs.randomAccessFile(packFile, "r");
 				length = fd.length();
 				onOpenPack();
 			}
