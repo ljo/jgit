@@ -982,7 +982,7 @@ public class RefDirectory extends RefDatabase {
 	 *             a temporary name cannot be allocated.
 	 */
 	RefDirectoryUpdate newTemporaryUpdate() throws IOException {
-		File tmp = File.createTempFile("renamed_", "_ref", refsDir);
+		File tmp = parent.getFS().createTempFile("renamed_", "_ref", refsDir);
 		String name = Constants.R_REFS + tmp.getName();
 		Ref ref = new ObjectIdRef.Unpeeled(NEW, name, null);
 		return new RefDirectoryUpdate(this, ref);
