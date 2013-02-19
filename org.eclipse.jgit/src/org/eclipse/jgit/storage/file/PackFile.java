@@ -139,6 +139,7 @@ public class PackFile implements Iterable<PackIndex.MutableEntry> {
 	/**
 	 * Construct a reader for an existing, pre-indexed packfile.
 	 *
+	 * @param fs
 	 * @param packFile
 	 *            path of the <code>.pack</code> file holding the data.
 	 */
@@ -160,7 +161,7 @@ public class PackFile implements Iterable<PackIndex.MutableEntry> {
 				throw new PackInvalidException(packFile);
 
 			try {
-				final PackIndex idx = PackIndex.open(extFile(INDEX));
+				final PackIndex idx = PackIndex.open(fs, extFile(INDEX));
 
 				if (packChecksum == null)
 					packChecksum = idx.packChecksum;

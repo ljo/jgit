@@ -456,6 +456,16 @@ public abstract class FS {
 	/**
 	 * @param prefix
 	 * @param suffix
+	 * @return File
+	 * @throws IOException
+	 */
+	public File createTempFile(String prefix, String suffix) throws IOException {
+		return File.createTempFile(prefix, suffix);
+	}
+
+	/**
+	 * @param prefix
+	 * @param suffix
 	 * @param directory
 	 * @return File
 	 * @throws IOException

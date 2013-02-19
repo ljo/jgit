@@ -59,7 +59,6 @@ import org.eclipse.jgit.treewalk.FileTreeIterator;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.WorkingTreeIterator;
 import org.eclipse.jgit.treewalk.filter.PathFilter;
-import org.eclipse.jgit.util.FS;
 
 /**
  * Supplies the content of a file for {@link DiffFormatter}.

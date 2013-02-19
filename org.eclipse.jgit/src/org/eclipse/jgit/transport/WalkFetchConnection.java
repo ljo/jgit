@@ -87,6 +87,7 @@ import org.eclipse.jgit.storage.file.PackIndex;
 import org.eclipse.jgit.storage.file.PackLock;
 import org.eclipse.jgit.storage.file.UnpackedObject;
 import org.eclipse.jgit.treewalk.TreeWalk;
+import org.eclipse.jgit.util.FS;
 import org.eclipse.jgit.util.FileUtils;
 
 /**
@@ -494,7 +495,7 @@ class WalkFetchConnection extends BaseFetchConnection {
 		while (packItr.hasNext() && !monitor.isCancelled()) {
 			final RemotePack pack = packItr.next();
 			try {
-				pack.openIndex(monitor);
+				pack.openIndex(local.getFS(), monitor);
 			} catch (IOException err) {
 				// If the index won't open its either not found or
 				// its a format we don't recognize. In either case
@@ -808,7 +809,8 @@ class WalkFetchConnection extends BaseFetchConnection {
 			}
 		}
 
-		void openIndex(final ProgressMonitor pm) throws IOException {
+		void openIndex(final FS fs, final ProgressMonitor pm)
+				throws IOException {
 			if (index != null)
 				return;
 			if (tmpIdx == null)
