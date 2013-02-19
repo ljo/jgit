@@ -69,6 +69,7 @@ import org.eclipse.jgit.errors.IncorrectObjectTypeException;
 import org.eclipse.jgit.errors.MissingObjectException;
 import org.eclipse.jgit.errors.NoWorkTreeException;
 import org.eclipse.jgit.internal.JGitText;
+import org.eclipse.jgit.lib.AnyObjectId;
 import org.eclipse.jgit.lib.ConfigConstants;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.FileMode;
@@ -82,6 +83,7 @@ import org.eclipse.jgit.revwalk.ObjectWalk;
 import org.eclipse.jgit.revwalk.RevObject;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.storage.pack.PackWriter;
+import org.eclipse.jgit.storage.pack.PackWriter.ObjectIdSet;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.TreeFilter;
 import org.eclipse.jgit.util.FS;
@@ -96,7 +98,7 @@ import org.eclipse.jgit.util.GitDateParser;
  * adapted to FileRepositories.
  */
 public class GC {
-	private static final String PRUNE_EXPIRE_DEFAULT = "2.weeks.ago";
+	private static final String PRUNE_EXPIRE_DEFAULT = "2.weeks.ago"; //$NON-NLS-1$
 
 	private final FileRepository repo;
 
@@ -190,8 +192,8 @@ public class GC {
 
 			if (!oldPack.shouldBeKept()) {
 				oldPack.close();
-				FileUtils.delete(nameFor(oldName, ".pack"), deleteOptions);
-				FileUtils.delete(nameFor(oldName, ".idx"), deleteOptions);
+				FileUtils.delete(nameFor(oldName, ".pack"), deleteOptions); //$NON-NLS-1$
+				FileUtils.delete(nameFor(oldName, ".idx"), deleteOptions); //$NON-NLS-1$
 			}
 		}
 		// close the complete object database. Thats my only chance to force
@@ -499,10 +501,10 @@ public class GC {
 				tagTargets.add(ref.getPeeledObjectId());
 		}
 
-		List<PackIndex> excluded = new LinkedList<PackIndex>();
-		for (PackFile f : repo.getObjectDatabase().getPacks())
+		List<ObjectIdSet> excluded = new LinkedList<ObjectIdSet>();
+		for (final PackFile f : repo.getObjectDatabase().getPacks())
 			if (f.shouldBeKept())
-				excluded.add(f.getIndex());
+				excluded.add(objectIdSet(f.getIndex()));
 
 		tagTargets.addAll(allHeads);
 		nonHeads.addAll(indexObjects);
@@ -514,7 +516,7 @@ public class GC {
 					tagTargets, excluded);
 			if (heads != null) {
 				ret.add(heads);
-				excluded.add(0, heads.getIndex());
+				excluded.add(0, objectIdSet(heads.getIndex()));
 			}
 		}
 		if (!nonHeads.isEmpty()) {
@@ -615,9 +617,9 @@ public class GC {
 			      default:
 					throw new IOException(MessageFormat.format(
 							JGitText.get().corruptObjectInvalidMode3, String
-									.format("%o", Integer.valueOf(treeWalk
+									.format("%o", Integer.valueOf(treeWalk //$NON-NLS-1$
 											.getRawMode(0)),
-											(objectId == null) ? "null"
+											(objectId == null) ? "null" //$NON-NLS-1$
 													: objectId.name(), treeWalk
 											.getPathString(), repo
 											.getIndexFile())));
@@ -633,7 +635,7 @@ public class GC {
 
 	private PackFile writePack(Set<? extends ObjectId> want,
 			Set<? extends ObjectId> have, Set<ObjectId> tagTargets,
-			List<PackIndex> excludeObjects) throws IOException {
+			List<ObjectIdSet> excludeObjects) throws IOException {
 		File tmpPack = null;
 		File tmpIdx = null;
 		PackWriter pw = new PackWriter(repo);
@@ -644,7 +646,7 @@ public class GC {
 			if (tagTargets != null)
 				pw.setTagTargets(tagTargets);
 			if (excludeObjects != null)
-				for (PackIndex idx : excludeObjects)
+				for (ObjectIdSet idx : excludeObjects)
 					pw.excludeObjects(idx);
 			pw.preparePack(pm, want, have);
 			if (pw.getObjectCount() == 0)
@@ -654,13 +656,11 @@ public class GC {
 
 			// create temporary files
 			String id = pw.computeName().getName();
-			File packdir = fs.resolve(repo.getObjectsDirectory(), "pack");
-			tmpPack = fs.createTempFile("gc_", ".pack_tmp", packdir);
-			tmpIdx = fs.resolve(
-					packdir,
-					tmpPack.getName().substring(0,
+			File packdir = fs.resolve(repo.getObjectsDirectory(), "pack"); //$NON-NLS-1$
+			tmpPack = fs.createTempFile("gc_", ".pack_tmp", packdir); //$NON-NLS-1$ //$NON-NLS-2$
+			tmpIdx = fs.resolve(packdir, tmpPack.getName().substring(0,
 					tmpPack.getName().lastIndexOf('.'))
-					+ ".idx_tmp");
+					+ ".idx_tmp"); //$NON-NLS-1$
 
 			if (!tmpIdx.createNewFile())
 				throw new IOException(MessageFormat.format(
@@ -691,9 +691,9 @@ public class GC {
 			}
 
 			// rename the temporary files to real files
-			File realPack = nameFor(id, ".pack");
+			File realPack = nameFor(id, ".pack"); //$NON-NLS-1$
 			tmpPack.setReadOnly();
-			File realIdx = nameFor(id, ".idx");
+			File realIdx = nameFor(id, ".idx"); //$NON-NLS-1$
 			realIdx.setReadOnly();
 			boolean delete = true;
 			try {
@@ -702,7 +702,7 @@ public class GC {
 				delete = false;
 				if (!tmpIdx.renameTo(realIdx)) {
 					File newIdx = fs.resolve(realIdx.getParentFile(),
-							realIdx.getName() + ".new");
+							realIdx.getName() + ".new"); //$NON-NLS-1$
 					if (!tmpIdx.renameTo(newIdx))
 						newIdx = tmpIdx;
 					throw new IOException(MessageFormat.format(
@@ -715,7 +715,7 @@ public class GC {
 				if (delete && tmpIdx.exists())
 					tmpIdx.delete();
 			}
-			return repo.getObjectDatabase().openPack(realPack, realIdx);
+			return repo.getObjectDatabase().openPack(realPack);
 		} finally {
 			pw.release();
 			if (tmpPack != null && tmpPack.exists())
@@ -726,8 +726,8 @@ public class GC {
 	}
 
 	private File nameFor(String name, String ext) {
-		File packdir = repo.getFS().resolve(repo.getObjectsDirectory(), "pack");
-		return repo.getFS().resolve(packdir, "pack-" + name + ext);
+		File packdir = repo.getFS().resolve(repo.getObjectsDirectory(), "pack"); //$NON-NLS-1$
+		return repo.getFS().resolve(packdir, "pack-" + name + ext); //$NON-NLS-1$
 	}
 
 	/**
@@ -860,4 +860,11 @@ public class GC {
 		expireAgeMillis = -1;
 	}
 
+	private static ObjectIdSet objectIdSet(final PackIndex idx) {
+		return new ObjectIdSet() {
+			public boolean contains(AnyObjectId objectId) {
+				return idx.hasObject(objectId);
+			}
+		};
+	}
 }

@@ -268,7 +268,7 @@ public class RefDirectory extends RefDatabase {
 					break;
 				}
 			} catch (IOException e) {
-				if (!(!needle.contains("/") && "".equals(prefix) && e
+				if (!(!needle.contains("/") && "".equals(prefix) && e //$NON-NLS-1$ //$NON-NLS-2$
 						.getCause() instanceof InvalidObjectIdException)) {
 					throw e;
 				}
@@ -356,7 +356,7 @@ public class RefDirectory extends RefDatabase {
 				if (newLoose == null && curIdx < curLoose.size())
 					newLoose = curLoose.copy(curIdx);
 
-			} else if (prefix.startsWith(R_REFS) && prefix.endsWith("/")) {
+			} else if (prefix.startsWith(R_REFS) && prefix.endsWith("/")) { //$NON-NLS-1$
 				curIdx = -(curLoose.find(prefix) + 1);
 				File dir = parent.getFS().resolve(refsDir,
 						prefix.substring(R_REFS.length()));
@@ -982,7 +982,7 @@ public class RefDirectory extends RefDatabase {
 	 *             a temporary name cannot be allocated.
 	 */
 	RefDirectoryUpdate newTemporaryUpdate() throws IOException {
-		File tmp = parent.getFS().createTempFile("renamed_", "_ref", refsDir);
+		File tmp = parent.getFS().createTempFile("renamed_", "_ref", refsDir); //$NON-NLS-1$ //$NON-NLS-2$
 		String name = Constants.R_REFS + tmp.getName();
 		Ref ref = new ObjectIdRef.Unpeeled(NEW, name, null);
 		return new RefDirectoryUpdate(this, ref);

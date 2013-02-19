@@ -196,7 +196,7 @@ class FetchProcess {
 		BatchRefUpdate batch = transport.local.getRefDatabase()
 				.newBatchUpdate()
 				.setAllowNonFastForwards(true)
-				.setRefLogMessage("fetch", true);
+				.setRefLogMessage("fetch", true); //$NON-NLS-1$
 		final RevWalk walk = new RevWalk(transport.local);
 		try {
 			if (monitor instanceof BatchingProgressMonitor) {
@@ -244,7 +244,7 @@ class FetchProcess {
 	private void fetchObjects(final ProgressMonitor monitor)
 			throws TransportException {
 		try {
-			conn.setPackLockMessage("jgit fetch " + transport.uri);
+			conn.setPackLockMessage("jgit fetch " + transport.uri); //$NON-NLS-1$
 			conn.fetch(monitor, askFor.values(), have);
 		} finally {
 			packLocks.addAll(conn.getPackLocks());
@@ -317,9 +317,9 @@ class FetchProcess {
 		File meta = transport.local.getDirectory();
 		if (meta == null)
 			return;
-
-		final FS fs = transport.local.getFS();
-		final LockFile lock = new LockFile(fs.resolve(meta, "FETCH_HEAD"), fs);
+        final FS fs = transport.local.getFS();
+        final LockFile lock = new LockFile(fs.resolve(meta, "FETCH_HEAD"), //$NON-NLS-1$
+				fs);
 		try {
 			if (lock.lock()) {
 				final Writer w = new OutputStreamWriter(lock.getOutputStream());
@@ -512,6 +512,6 @@ class FetchProcess {
 			if (cmd.getResult() != ReceiveCommand.Result.OK)
 				return cmd.getRefName();
 		}
-		return "";
+		return ""; //$NON-NLS-1$
 	}
 }

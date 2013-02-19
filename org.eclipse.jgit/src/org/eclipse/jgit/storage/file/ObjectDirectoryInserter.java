@@ -224,7 +224,7 @@ class ObjectDirectoryInserter extends ObjectInserter {
 	}
 
 	File newTempFile() throws IOException {
-		return db.getFS().createTempFile("noz", null, db.getDirectory());
+		return db.getFS().createTempFile("noz", null, db.getDirectory()); //$NON-NLS-1$
 	}
 
 	DeflaterOutputStream compress(final OutputStream out) {

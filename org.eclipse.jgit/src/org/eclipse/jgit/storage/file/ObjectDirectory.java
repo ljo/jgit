@@ -154,10 +154,10 @@ public class ObjectDirectory extends FileObjectDatabase {
 			File[] alternatePaths, FS fs, File shallowFile) throws IOException {
 		config = cfg;
 		objects = dir;
-		infoDirectory = fs.resolve(objects, "info");
-		packDirectory = fs.resolve(objects, "pack");
-		alternatesFile = fs.resolve(infoDirectory, "alternates");
-		cachedPacksFile = fs.resolve(infoDirectory, "cached-packs");
+		infoDirectory = fs.resolve(objects, "info"); //$NON-NLS-1$
+		packDirectory = fs.resolve(objects, "pack"); //$NON-NLS-1$
+		alternatesFile = fs.resolve(infoDirectory, "alternates"); //$NON-NLS-1$
+		cachedPacksFile = fs.resolve(infoDirectory, "cached-packs"); //$NON-NLS-1$
 		packList = new AtomicReference<PackList>(NO_PACKS);
 		cachedPacks = new AtomicReference<CachedPackList>();
 		unpackedObjectCache = new UnpackedObjectCache();
@@ -326,35 +326,25 @@ public class ObjectDirectory extends FileObjectDatabase {
 	 *
 	 * @param pack
 	 *            path of the pack file to open.
-	 * @param idx
-	 *            path of the corresponding index file.
 	 * @return the pack that was opened and added to the database.
 	 * @throws IOException
 	 *             index file could not be opened, read, or is not recognized as
 	 *             a Git pack file index.
 	 */
-	public PackFile openPack(final File pack, final File idx)
+	public PackFile openPack(final File pack)
 			throws IOException {
 		final String p = pack.getName();
-		final String i = idx.getName();
-
-		if (p.length() != 50 || !p.startsWith("pack-") || !p.endsWith(".pack"))
+		if (p.length() != 50 || !p.startsWith("pack-") || !p.endsWith(".pack")) //$NON-NLS-1$
 			throw new IOException(MessageFormat.format(JGitText.get().notAValidPack, pack));
 
-		if (i.length() != 49 || !i.startsWith("pack-") || !i.endsWith(".idx"))
-			throw new IOException(MessageFormat.format(JGitText.get().notAValidPack, idx));
-
-		if (!p.substring(0, 45).equals(i.substring(0, 45)))
-			throw new IOException(MessageFormat.format(JGitText.get().packDoesNotMatchIndex, pack));
-
-		PackFile res = new PackFile(fs, idx, pack);
+		PackFile res = new PackFile(fs, pack);
 		insertPack(res);
 		return res;
 	}
 
 	@Override
 	public String toString() {
-		return "ObjectDirectory[" + getDirectory() + "]";
+		return "ObjectDirectory[" + getDirectory() + "]"; //$NON-NLS-1$
 	}
 
 	boolean hasObject1(final AnyObjectId objectId) {
@@ -454,7 +444,6 @@ public class ObjectDirectory extends FileObjectDatabase {
 					pList = scanPacks(pList);
 					continue SEARCH;
 				} catch (IOException e) {
-					e.printStackTrace();
 					// Assume the pack is corrupted.
 					//
 					removePack(p);
@@ -587,7 +576,7 @@ public class ObjectDirectory extends FileObjectDatabase {
 		// directories are always lazily created. Note that we
 		// try the rename first as the directory likely does exist.
 		//
-		FileUtils.mkdir(dst.getParentFile());
+		FileUtils.mkdir(dst.getParentFile(), true);
 		if (tmp.renameTo(dst)) {
 			dst.setReadOnly();
 			unpackedObjectCache.add(id);
@@ -727,11 +716,11 @@ public class ObjectDirectory extends FileObjectDatabase {
 		for (final String indexName : names) {
 			// Must match "pack-[0-9a-f]{40}.idx" to be an index.
 			//
-			if (indexName.length() != 49 || !indexName.endsWith(".idx"))
+			if (indexName.length() != 49 || !indexName.endsWith(".idx")) //$NON-NLS-1$
 				continue;
 
 			final String base = indexName.substring(0, indexName.length() - 4);
-			final String packName = base + ".pack";
+			final String packName = base + ".pack"; //$NON-NLS-1$
 			if (!names.contains(packName)) {
 				// Sometimes C Git's HTTP fetch transport leaves a
 				// .idx file behind and does not download the .pack.
@@ -747,8 +736,7 @@ public class ObjectDirectory extends FileObjectDatabase {
 			}
 
 			final File packFile = fs.resolve(packDirectory, packName);
-			final File idxFile = fs.resolve(packDirectory, indexName);
-			list.add(new PackFile(fs, idxFile, packFile));
+			list.add(new PackFile(fs, packFile));
 			foundNew = true;
 		}
 
@@ -806,7 +794,7 @@ public class ObjectDirectory extends FileObjectDatabase {
 			return Collections.emptySet();
 		final Set<String> nameSet = new HashSet<String>(nameList.length << 1);
 		for (final String name : nameList) {
-			if (name.startsWith("pack-"))
+			if (name.startsWith("pack-")) //$NON-NLS-1$
 				nameSet.add(name);
 		}
 		return nameSet;
@@ -857,7 +845,7 @@ public class ObjectDirectory extends FileObjectDatabase {
 
 	private AlternateHandle openAlternate(File objdir) throws IOException {
 		final File parent = objdir.getParentFile();
-		if (FileKey.isGitRepository(fs, parent)) {
+		if (FileKey.isGitRepository(parent, fs)) {
 			FileKey key = FileKey.exact(parent, fs);
 			FileRepository db = (FileRepository) RepositoryCache.open(key);
 			return new AlternateRepository(db);

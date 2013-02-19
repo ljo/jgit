@@ -133,7 +133,7 @@ public class CleanCommand extends GitCommand<Set<String>> {
 							FileUtils.delete(
 									repo.getFS().resolve(repo.getWorkTree(), dir),
 									FileUtils.RECURSIVE);
-						files.add(dir + "/");
+						files.add(dir + "/"); //$NON-NLS-1$
 					}
 		} catch (IOException e) {
 			throw new JGitInternalException(e.getMessage(), e);
