@@ -511,7 +511,7 @@ public class BaseRepositoryBuilder<B extends BaseRepositoryBuilder, R extends Re
 			FS tryFS = safeFS();
 			while (current != null) {
 				File dir = tryFS.resolve(current, DOT_GIT);
-				if (FileKey.isGitRepository(tryFS, dir)) {
+				if (FileKey.isGitRepository(dir, tryFS)) {
 					setGitDir(dir);
 					break;
 				} else if (dir.isFile())

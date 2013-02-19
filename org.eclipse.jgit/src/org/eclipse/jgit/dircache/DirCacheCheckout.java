@@ -1103,9 +1103,7 @@ public class DirCacheCheckout {
 		ObjectLoader ol = or.open(entry.getObjectId());
 		File parentDir = f.getParentFile();
 		parentDir.mkdirs();
-		File tmpFile = File.createTempFile("._" + f.getName(), null, parentDir); //$NON-NLS-1$
-		File tmpFile = repo.getFS().createTempFile("._" + f.getName(), null,
-				parentDir);
+		File tmpFile = repo.getFS().createTempFile("._" + f.getName(), null, parentDir); //$NON-NLS-1$
 		WorkingTreeOptions opt = repo.getConfig().get(WorkingTreeOptions.KEY);
 		FileOutputStream rawChannel = repo.getFS().fileOutputStream(tmpFile);
 		OutputStream channel;
