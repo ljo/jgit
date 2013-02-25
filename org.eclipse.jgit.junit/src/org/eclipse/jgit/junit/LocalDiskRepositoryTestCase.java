@@ -103,7 +103,8 @@ public abstract class LocalDiskRepositoryTestCase {
 	/** A fake (but stable) identity for committer fields in the test. */
 	protected PersonIdent committer;
 
-	private final File trash = new File(new File("target"), "trash");
+	private final File trash = FS.DETECTED.resolve(
+			FS.DETECTED.resolve("target"), "trash");
 
 	private final List<Repository> toClose = new ArrayList<Repository>();
 
@@ -132,7 +133,8 @@ public abstract class LocalDiskRepositoryTestCase {
 		recursiveDelete(testId(), trash, true, false);
 
 		mockSystemReader = new MockSystemReader();
-		mockSystemReader.userGitConfig = new FileBasedConfig(new File(trash,
+		mockSystemReader.userGitConfig = new FileBasedConfig(
+				FS.DETECTED.resolve(trash,
 				"usergitconfig"), FS.DETECTED);
 		ceilTestDirectories(getCeilings());
 		SystemReader.setInstance(mockSystemReader);
@@ -317,8 +319,8 @@ public abstract class LocalDiskRepositoryTestCase {
 	 */
 	protected File createTempDirectory(String name) throws IOException {
 		String gitdirName = createUniqueTestFolderPrefix();
-		File parent = new File(trash, gitdirName);
-		File directory = new File(parent, name);
+		File parent = FS.DETECTED.resolve(trash, gitdirName);
+		File directory = FS.DETECTED.resolve(parent, name);
 		FileUtils.mkdirs(directory);
 		return directory.getCanonicalFile();
 	}
@@ -337,12 +339,13 @@ public abstract class LocalDiskRepositoryTestCase {
 		if (!bare)
 			gitdirName += "/";
 		gitdirName += Constants.DOT_GIT;
-		File gitdir = new File(trash, gitdirName);
+		File gitdir = FS.DETECTED.resolve(trash, gitdirName);
 		return gitdir.getCanonicalFile();
 	}
 
 	protected File createTempFile() throws IOException {
-		return new File(trash, "tmp-" + UUID.randomUUID()).getCanonicalFile();
+		return FS.DETECTED.resolve(trash, "tmp-" + UUID.randomUUID())
+				.getCanonicalFile();
 	}
 
 	/**
@@ -400,7 +403,7 @@ public abstract class LocalDiskRepositoryTestCase {
 	 *             the file could not be written.
 	 */
 	protected File write(final String body) throws IOException {
-		final File f = File.createTempFile("temp", "txt", trash);
+		final File f = FS.DETECTED.createTempFile("temp", "txt", trash);
 		try {
 			write(f, body);
 			return f;

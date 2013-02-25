@@ -1070,7 +1070,7 @@ public abstract class WorkingTreeIterator extends AbstractTreeIterator {
 				if (path.startsWith("~/")) //$NON-NLS-1$
 					excludesfile = fs.resolve(fs.userHome(), path.substring(2));
 				else
-					excludesfile = fs.resolve(null, path);
+					excludesfile = fs.resolve(path);
 				loadRulesFromFile(r, excludesfile);
 			}
 

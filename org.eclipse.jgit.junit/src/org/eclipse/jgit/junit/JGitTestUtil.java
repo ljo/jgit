@@ -46,7 +46,6 @@
 package org.eclipse.jgit.junit;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
@@ -138,7 +137,7 @@ public abstract class JGitTestUtil {
 
 	public static File writeTrashFile(final FileRepository db,
 			final String name, final String data) throws IOException {
-		File path = new File(db.getWorkTree(), name);
+		File path = db.getFS().resolve(db.getWorkTree(), name);
 		write(path, data);
 		return path;
 	}
@@ -146,7 +145,7 @@ public abstract class JGitTestUtil {
 	public static File writeTrashFile(final FileRepository db,
 			final String subdir,
 			final String name, final String data) throws IOException {
-		File path = new File(db.getWorkTree() + "/" + subdir, name);
+		File path = db.getFS().resolve(db.getWorkTree() + "/" + subdir, name);
 		write(path, data);
 		return path;
 	}
@@ -168,7 +167,8 @@ public abstract class JGitTestUtil {
 	public static void write(final File f, final String body)
 			throws IOException {
 		FileUtils.mkdirs(f.getParentFile(), true);
-		Writer w = new OutputStreamWriter(new FileOutputStream(f), "UTF-8");
+		Writer w = new OutputStreamWriter(FS.DETECTED.fileOutputStream(f),
+				"UTF-8");
 		try {
 			w.write(body);
 		} finally {
@@ -193,7 +193,7 @@ public abstract class JGitTestUtil {
 
 	public static String read(final FileRepository db, final String name)
 			throws IOException {
-		File file = new File(db.getWorkTree(), name);
+		File file = db.getFS().resolve(db.getWorkTree(), name);
 		return read(file);
 	}
 

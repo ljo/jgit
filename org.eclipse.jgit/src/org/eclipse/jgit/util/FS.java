@@ -94,6 +94,15 @@ public abstract class FS {
 	 * @return detected file system abstraction
 	 */
 	public static FS detect(Boolean cygwinUsed) {
+		String fsClass = System.getProperty("jgit-FS-class");
+		if (fsClass != null) {
+			try {
+				return (FS)Class.forName(fsClass).newInstance();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+
 		if (SystemReader.getInstance().isWindows()) {
 			if (cygwinUsed == null)
 				cygwinUsed = Boolean.valueOf(FS_Win32_Cygwin.isCygwin());
@@ -197,6 +206,15 @@ public abstract class FS {
 		if (abspn.isAbsolute())
 			return abspn;
 		return new File(dir, name);
+	}
+
+	/**
+	 * @param path
+	 * @param name
+	 * @return File
+	 */
+	public File resolve(String path, String name) {
+		return resolve(resolve(path), name);
 	}
 
 	/**

@@ -100,7 +100,7 @@ class FS_Win32 extends FS {
 				Charset.defaultCharset().name());
 		if (w != null) {
 			// The path may be in cygwin/msys notation so resolve it right away
-			gitExe = resolve(null, w);
+			gitExe = resolve(w);
 			if (gitExe != null)
 				return resolveGrandparentFile(gitExe);
 		}
@@ -120,7 +120,7 @@ class FS_Win32 extends FS {
 	protected File userHomeImpl() {
 		String home = SystemReader.getInstance().getenv("HOME"); //$NON-NLS-1$
 		if (home != null)
-			return resolve(null, home);
+			return resolve(home);
 		String homeDrive = SystemReader.getInstance().getenv("HOMEDRIVE"); //$NON-NLS-1$
 		if (homeDrive != null) {
 			String homePath = SystemReader.getInstance().getenv("HOMEPATH"); //$NON-NLS-1$
