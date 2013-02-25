@@ -55,6 +55,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 
 import org.eclipse.jgit.storage.file.FileRepository;
+import org.eclipse.jgit.util.FS;
 import org.eclipse.jgit.util.FileUtils;
 import org.eclipse.jgit.util.IO;
 import org.eclipse.jgit.util.RawParseUtils;
@@ -186,7 +187,7 @@ public abstract class JGitTestUtil {
 	 *             the file does not exist, or could not be read.
 	 */
 	public static String read(final File file) throws IOException {
-		final byte[] body = IO.readFully(file);
+		final byte[] body = IO.readFully(FS.DETECTED, file);
 		return new String(body, 0, body.length, "UTF-8");
 	}
 

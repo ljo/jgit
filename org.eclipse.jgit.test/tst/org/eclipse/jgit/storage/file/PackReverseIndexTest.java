@@ -53,6 +53,7 @@ import org.eclipse.jgit.errors.CorruptObjectException;
 import org.eclipse.jgit.junit.JGitTestUtil;
 import org.eclipse.jgit.junit.RepositoryTestCase;
 import org.eclipse.jgit.storage.file.PackIndex.MutableEntry;
+import org.eclipse.jgit.util.FS;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -69,7 +70,8 @@ public class PackReverseIndexTest extends RepositoryTestCase {
 	public void setUp() throws Exception {
 		super.setUp();
 		// index with both small (< 2^31) and big offsets
-		idx = PackIndex.open(JGitTestUtil.getTestResourceFile(
+		idx = PackIndex.open(FS.DETECTED,
+				JGitTestUtil.getTestResourceFile(
 				"pack-huge.idx"));
 		reverseIdx = new PackReverseIndex(idx);
 	}

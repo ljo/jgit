@@ -68,6 +68,7 @@ import org.eclipse.jgit.junit.RepositoryTestCase;
 import org.eclipse.jgit.merge.MergeStrategy;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.treewalk.FileTreeIterator;
+import org.eclipse.jgit.util.FS;
 import org.eclipse.jgit.util.IO;
 import org.junit.Test;
 
@@ -79,7 +80,7 @@ public class IndexDiffTest extends RepositoryTestCase {
 		ObjectInserter inserter = db.newObjectInserter();
 		final File f = new File(workdir, path);
 		final ObjectId id = inserter.insert(Constants.OBJ_BLOB,
-				IO.readFully(f));
+				IO.readFully(FS.DETECTED, f));
 		return new PathEdit(path) {
 			public void apply(DirCacheEntry ent) {
 				ent.setFileMode(FileMode.REGULAR_FILE);

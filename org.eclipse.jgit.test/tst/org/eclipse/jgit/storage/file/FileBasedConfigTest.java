@@ -89,7 +89,7 @@ public class FileBasedConfigTest {
 
 		config.setString(USER, null, NAME, BOB);
 		config.save();
-		assertArrayEquals(CONTENT2.getBytes(), IO.readFully(file));
+		assertArrayEquals(CONTENT2.getBytes(), IO.readFully(FS.DETECTED, file));
 	}
 
 	@Test
@@ -101,7 +101,7 @@ public class FileBasedConfigTest {
 
 		config.setString(USER, null, NAME, BOB);
 		config.save();
-		assertArrayEquals(CONTENT2.getBytes(), IO.readFully(file));
+		assertArrayEquals(CONTENT2.getBytes(), IO.readFully(FS.DETECTED, file));
 	}
 
 	@Test
@@ -125,7 +125,7 @@ public class FileBasedConfigTest {
 		bos2.write(0xBB);
 		bos2.write(0xBF);
 		bos2.write(CONTENT2.getBytes("UTF-8"));
-		assertArrayEquals(bos2.toByteArray(), IO.readFully(file));
+		assertArrayEquals(bos2.toByteArray(), IO.readFully(FS.DETECTED, file));
 	}
 
 	@Test
@@ -145,7 +145,7 @@ public class FileBasedConfigTest {
 		final ByteArrayOutputStream bos2 = new ByteArrayOutputStream();
 		bos2.write(" \n\t".getBytes());
 		bos2.write(CONTENT2.getBytes());
-		assertArrayEquals(bos2.toByteArray(), IO.readFully(file));
+		assertArrayEquals(bos2.toByteArray(), IO.readFully(FS.DETECTED, file));
 	}
 
 	private File createFile(byte[] content) throws IOException {

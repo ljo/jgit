@@ -215,7 +215,7 @@ public class DirCacheCGitCompatabilityTest extends LocalDiskRepositoryTestCase {
 		final ByteArrayOutputStream bos = new ByteArrayOutputStream();
 		dc.writeTo(bos);
 		final byte[] indexBytes = bos.toByteArray();
-		final byte[] expectedBytes = IO.readFully(file);
+		final byte[] expectedBytes = IO.readFully(FS.DETECTED, file);
 		assertArrayEquals(expectedBytes, indexBytes);
 	}
 

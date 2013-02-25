@@ -55,6 +55,8 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.util.FS;
 import org.eclipse.jgit.util.HttpSupport;
 import org.eclipse.jgit.util.IO;
 
@@ -79,9 +81,12 @@ class TextFileServlet extends HttpServlet {
 	}
 
 	private byte[] read(final HttpServletRequest req) throws IOException {
-		final File gitdir = getRepository(req).getDirectory();
+		Repository repo = getRepository(req);
+		final File gitdir = repo.getDirectory();
 		if (gitdir == null)
 			throw new FileNotFoundException(fileName);
-		return IO.readFully(new File(gitdir, fileName));
+
+		final FS fs = repo.getFS();
+		return IO.readFully(fs, fs.resolve(gitdir, fileName));
 	}
 }
