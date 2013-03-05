@@ -47,7 +47,6 @@
 package org.eclipse.jgit.transport;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.Arrays;
@@ -93,7 +92,7 @@ class TransportBundleFile extends Transport implements TransportBundle {
 		public Transport open(URIish uri, Repository local, String remoteName)
 				throws NotSupportedException, TransportException {
 			if ("bundle".equals(uri.getScheme())) { //$NON-NLS-1$
-				File path = local.getFS().resolve(new File("."), uri.getPath()); //$NON-NLS-1$
+				File path = local.getFS().resolve(local.getFS().resolve("."), uri.getPath()); //$NON-NLS-1$
 				return new TransportBundleFile(local, uri, path);
 			}
 
@@ -118,7 +117,7 @@ class TransportBundleFile extends Transport implements TransportBundle {
 			TransportException {
 		final InputStream src;
 		try {
-			src = new FileInputStream(bundle);
+			src = local.getFS().fileInputStream(bundle);
 		} catch (FileNotFoundException err) {
 			throw new TransportException(uri, JGitText.get().notFound);
 		}

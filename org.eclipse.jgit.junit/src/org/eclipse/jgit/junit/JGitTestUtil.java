@@ -199,7 +199,7 @@ public abstract class JGitTestUtil {
 
 	public static void deleteTrashFile(final FileRepository db,
 			final String name) throws IOException {
-		File path = new File(db.getWorkTree(), name);
+		File path = db.getFS().resolve(db.getWorkTree(), name);
 		FileUtils.delete(path);
 	}
 

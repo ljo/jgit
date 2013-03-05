@@ -43,6 +43,7 @@ import java.util.concurrent.Callable;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.internal.JGitText;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.util.FS;
 
 /**
  * Common superclass of all commands in the package {@code org.eclipse.jgit.api}
@@ -88,6 +89,13 @@ public abstract class GitCommand<T> implements Callable<T> {
 	 */
 	public Repository getRepository() {
 		return repo;
+	}
+
+	/**
+	 * @return FS
+	 */
+	public FS getFS() {
+		return repo.getFS();
 	}
 
 	/**

@@ -94,19 +94,19 @@ public class ResetCommandTest extends RepositoryTestCase {
 		initialCommit = git.commit().setMessage("initial commit").call();
 
 		// create nested file
-		File dir = new File(db.getWorkTree(), "dir");
+		File dir = resolve(db.getWorkTree(), "dir");
 		FileUtils.mkdir(dir);
-		File nestedFile = new File(dir, "b.txt");
+		File nestedFile = resolve(dir, "b.txt");
 		FileUtils.createNewFile(nestedFile);
 
-		PrintWriter nesterFileWriter = new PrintWriter(nestedFile);
+		PrintWriter nesterFileWriter = getPrintWriter(nestedFile);
 		nesterFileWriter.print("content");
 		nesterFileWriter.flush();
 
 		// create file
-		indexFile = new File(db.getWorkTree(), "a.txt");
+		indexFile = resolve(db.getWorkTree(), "a.txt");
 		FileUtils.createNewFile(indexFile);
-		PrintWriter writer = new PrintWriter(indexFile);
+		PrintWriter writer = getPrintWriter(indexFile);
 		writer.print("content");
 		writer.flush();
 
@@ -126,10 +126,10 @@ public class ResetCommandTest extends RepositoryTestCase {
 		git.add().addFilepattern("a.txt").addFilepattern("dir").call();
 
 		// create a file not added to the index
-		untrackedFile = new File(db.getWorkTree(),
+		untrackedFile = resolve(db.getWorkTree(),
 				"notAddedToIndex.txt");
 		FileUtils.createNewFile(untrackedFile);
-		PrintWriter writer2 = new PrintWriter(untrackedFile);
+		PrintWriter writer2 = getPrintWriter(untrackedFile);
 		writer2.print("content");
 		writer2.close();
 	}
@@ -430,14 +430,14 @@ public class ResetCommandTest extends RepositoryTestCase {
 		g.add().addFilepattern("file1").call();
 		RevCommit first = g.commit().setMessage("initial commit").call();
 
-		assertTrue(new File(db.getWorkTree(), "file1").exists());
+		assertTrue(resolve(db.getWorkTree(), "file1").exists());
 		createBranch(first, "refs/heads/branch1");
 		checkoutBranch("refs/heads/branch1");
 
 		writeTrashFile("file2", "file2");
 		g.add().addFilepattern("file2").call();
 		g.commit().setMessage("second commit").call();
-		assertTrue(new File(db.getWorkTree(), "file2").exists());
+		assertTrue(resolve(db.getWorkTree(), "file2").exists());
 
 		checkoutBranch("refs/heads/master");
 

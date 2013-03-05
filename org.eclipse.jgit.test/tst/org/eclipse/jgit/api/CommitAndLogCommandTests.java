@@ -117,9 +117,9 @@ public class CommitAndLogCommandTests extends RepositoryTestCase {
 		Git git = new Git(db);
 
 		// create first file
-		File file = new File(db.getWorkTree(), "a.txt");
+		File file = resolve(db.getWorkTree(), "a.txt");
 		FileUtils.createNewFile(file);
-		PrintWriter writer = new PrintWriter(file);
+		PrintWriter writer = getPrintWriter(file);
 		writer.print("content1");
 		writer.close();
 
@@ -128,9 +128,9 @@ public class CommitAndLogCommandTests extends RepositoryTestCase {
 		git.commit().setMessage("commit1").setCommitter(committer).call();
 
 		// create second file
-		file = new File(db.getWorkTree(), "b.txt");
+		file = resolve(db.getWorkTree(), "b.txt");
 		FileUtils.createNewFile(file);
-		writer = new PrintWriter(file);
+		writer = getPrintWriter(file);
 		writer.print("content2");
 		writer.close();
 
@@ -212,9 +212,10 @@ public class CommitAndLogCommandTests extends RepositoryTestCase {
 		db.updateRef(Constants.HEAD).link("refs/heads/side");
 		RevCommit firstSide = git.commit().setMessage("first side commit").setAuthor(author).call();
 
-		write(new File(db.getDirectory(), Constants.MERGE_HEAD), ObjectId
+		write(resolve(db.getDirectory(), Constants.MERGE_HEAD),
+				ObjectId
 				.toString(db.resolve("refs/heads/master")));
-		write(new File(db.getDirectory(), Constants.MERGE_MSG), "merging");
+		write(resolve(db.getDirectory(), Constants.MERGE_MSG), "merging");
 
 		RevCommit commit = git.commit().call();
 		RevCommit[] parents = commit.getParents();
@@ -226,9 +227,9 @@ public class CommitAndLogCommandTests extends RepositoryTestCase {
 	@Test
 	public void testAddUnstagedChanges() throws IOException,
 			JGitInternalException, GitAPIException {
-		File file = new File(db.getWorkTree(), "a.txt");
+		File file = resolve(db.getWorkTree(), "a.txt");
 		FileUtils.createNewFile(file);
-		PrintWriter writer = new PrintWriter(file);
+		PrintWriter writer = getPrintWriter(file);
 		writer.print("content");
 		writer.close();
 
@@ -239,7 +240,7 @@ public class CommitAndLogCommandTests extends RepositoryTestCase {
 		assertEquals("6b584e8ece562ebffc15d38808cd6b98fc3d97ea",
 				tw.getObjectId(0).getName());
 
-		writer = new PrintWriter(file);
+		writer = getPrintWriter(file);
 		writer.print("content2");
 		writer.close();
 		commit = git.commit().setMessage("second commit").call();
@@ -261,9 +262,9 @@ public class CommitAndLogCommandTests extends RepositoryTestCase {
 		Git git = new Git(db);
 
 		// create file
-		File file = new File(db.getWorkTree(), "a.txt");
+		File file = resolve(db.getWorkTree(), "a.txt");
 		FileUtils.createNewFile(file);
-		PrintWriter writer = new PrintWriter(file);
+		PrintWriter writer = getPrintWriter(file);
 		writer.print("content1");
 		writer.close();
 

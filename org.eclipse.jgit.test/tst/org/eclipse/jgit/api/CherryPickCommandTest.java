@@ -101,8 +101,8 @@ public class CherryPickCommandTest extends RepositoryTestCase {
 
 		git.cherryPick().include(fixingA).call();
 
-		assertFalse(new File(db.getWorkTree(), "b").exists());
-		checkFile(new File(db.getWorkTree(), "a"),
+		assertFalse(resolve(db.getWorkTree(), "b").exists());
+		checkFile(resolve(db.getWorkTree(), "a"),
 				"first line\nsecond line\nthird line\nfeature++\n");
 		Iterator<RevCommit> history = git.log().call().iterator();
 		assertEquals("fixed a", history.next().getFullMessage());
@@ -147,9 +147,9 @@ public class CherryPickCommandTest extends RepositoryTestCase {
 				.call();
 
 		assertEquals(CherryPickStatus.CONFLICTING, result.getStatus());
-		assertTrue(new File(db.getDirectory(), Constants.MERGE_MSG).exists());
+		assertTrue(resolve(db.getDirectory(), Constants.MERGE_MSG).exists());
 		assertEquals("side\n\nConflicts:\n\ta\n", db.readMergeCommitMsg());
-		assertTrue(new File(db.getDirectory(), Constants.CHERRY_PICK_HEAD)
+		assertTrue(resolve(db.getDirectory(), Constants.CHERRY_PICK_HEAD)
 				.exists());
 		assertEquals(sideCommit.getId(), db.readCherryPickHead());
 		assertEquals(RepositoryState.CHERRY_PICKING, db.getRepositoryState());
@@ -177,13 +177,13 @@ public class CherryPickCommandTest extends RepositoryTestCase {
 
 		assertEquals(CherryPickStatus.CONFLICTING, result.getStatus());
 		assertEquals(RepositoryState.CHERRY_PICKING, db.getRepositoryState());
-		assertTrue(new File(db.getDirectory(), Constants.CHERRY_PICK_HEAD)
+		assertTrue(resolve(db.getDirectory(), Constants.CHERRY_PICK_HEAD)
 				.exists());
 
 		git.reset().setMode(ResetType.MIXED).setRef("HEAD").call();
 
 		assertEquals(RepositoryState.SAFE, db.getRepositoryState());
-		assertFalse(new File(db.getDirectory(), Constants.CHERRY_PICK_HEAD)
+		assertFalse(resolve(db.getDirectory(), Constants.CHERRY_PICK_HEAD)
 				.exists());
 	}
 
@@ -233,7 +233,7 @@ public class CherryPickCommandTest extends RepositoryTestCase {
 		assertEquals(CherryPickStatus.CONFLICTING, result.getStatus());
 
 		String expected = "<<<<<<< master\na(master)\n=======\na(side)\n>>>>>>> 527460a side\n";
-		checkFile(new File(db.getWorkTree(), "a"), expected);
+		checkFile(resolve(db.getWorkTree(), "a"), expected);
 	}
 
 	@Test
@@ -246,7 +246,7 @@ public class CherryPickCommandTest extends RepositoryTestCase {
 		assertEquals(CherryPickStatus.CONFLICTING, result.getStatus());
 
 		String expected = "<<<<<<< custom name\na(master)\n=======\na(side)\n>>>>>>> 527460a side\n";
-		checkFile(new File(db.getWorkTree(), "a"), expected);
+		checkFile(resolve(db.getWorkTree(), "a"), expected);
 	}
 
 	private RevCommit prepareCherryPick(final Git git) throws Exception {
@@ -286,7 +286,7 @@ public class CherryPickCommandTest extends RepositoryTestCase {
 		// staged file a causes DIRTY_INDEX
 		assertEquals(1, result.getFailingPaths().size());
 		assertEquals(reason, result.getFailingPaths().get("a"));
-		assertEquals("a(modified)", read(new File(db.getWorkTree(), "a")));
+		assertEquals("a(modified)", read(resolve(db.getWorkTree(), "a")));
 		// index shall be unchanged
 		assertEquals(indexState, indexState(CONTENT));
 		assertEquals(RepositoryState.SAFE, db.getRepositoryState());

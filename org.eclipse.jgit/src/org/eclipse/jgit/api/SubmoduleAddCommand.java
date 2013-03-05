@@ -177,8 +177,8 @@ public class SubmoduleAddCommand extends
 		}
 
 		// Save path and URL to parent repository's .gitmodules file
-		FileBasedConfig modulesConfig = new FileBasedConfig(new File(
-				repo.getWorkTree(), Constants.DOT_GIT_MODULES), repo.getFS());
+		FileBasedConfig modulesConfig = new FileBasedConfig(getFS().resolve(
+				repo.getWorkTree(), Constants.DOT_GIT_MODULES), getFS());
 		try {
 			modulesConfig.load();
 			modulesConfig.setString(ConfigConstants.CONFIG_SUBMODULE_SECTION,

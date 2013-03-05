@@ -78,7 +78,7 @@ public class InitCommandTest extends RepositoryTestCase {
 	public void testInitNonEmptyRepository() throws IOException,
 			JGitInternalException, GitAPIException {
 		File directory = createTempDirectory("testInitRepository2");
-		File someFile = new File(directory, "someFile");
+		File someFile = resolve(directory, "someFile");
 		someFile.createNewFile();
 		assertTrue(someFile.exists());
 		assertTrue(directory.listFiles().length > 0);

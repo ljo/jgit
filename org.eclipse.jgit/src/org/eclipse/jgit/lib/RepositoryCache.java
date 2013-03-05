@@ -406,8 +406,9 @@ public class RepositoryCache {
 
 			final String name = directory.getName();
 			final File parent = directory.getParentFile();
-			if (isGitRepository(new File(parent, name + Constants.DOT_GIT_EXT), fs))
-				return new File(parent, name + Constants.DOT_GIT_EXT);
+			if (isGitRepository(
+					fs.resolve(parent, name + Constants.DOT_GIT_EXT), fs))
+				return fs.resolve(parent, name + Constants.DOT_GIT_EXT);
 			return null;
 		}
 	}

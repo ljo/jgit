@@ -46,7 +46,6 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -91,6 +90,7 @@ import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.TreeFilter;
+import org.eclipse.jgit.util.FS;
 import org.eclipse.jgit.util.FileUtils;
 import org.eclipse.jgit.util.IO;
 import org.eclipse.jgit.util.RawParseUtils;
@@ -242,7 +242,7 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 			if (operation == Operation.CONTINUE) {
 				newHead = continueRebase();
 
-				File amendFile = new File(rebaseDir, AMEND);
+				File amendFile = repo.getFS().resolve(rebaseDir, AMEND);
 				boolean amendExists = amendFile.exists();
 				if (amendExists) {
 					FileUtils.delete(amendFile);
@@ -265,8 +265,9 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 			List<Step> steps = loadSteps();
 			if (isInteractive()) {
 				interactiveHandler.prepareSteps(steps);
+				final FS fs = repo.getFS();
 				BufferedWriter fw = new BufferedWriter(
-						new OutputStreamWriter(new FileOutputStream(new File(
+						new OutputStreamWriter(fs.fileOutputStream(fs.resolve(
 								rebaseDir, GIT_REBASE_TODO)),
 								Constants.CHARACTER_ENCODING));
 				fw.newLine();
@@ -412,7 +413,8 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 			if (needsDeleteFiles) {
 				List<String> fileList = dco.getToBeDeleted();
 				for (String filePath : fileList) {
-					File fileToDelete = new File(repo.getWorkTree(), filePath);
+					File fileToDelete = getFS().resolve(repo.getWorkTree(),
+							filePath);
 					if (fileToDelete.exists())
 						FileUtils.delete(fileToDelete, FileUtils.RECURSIVE
 								| FileUtils.RETRY);
@@ -531,10 +533,10 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 			return;
 		List<String> todoLines = new ArrayList<String>();
 		List<String> poppedLines = new ArrayList<String>();
-		File todoFile = repo.getFS().resolve(rebaseDir, GIT_REBASE_TODO);
-		File doneFile = repo.getFS().resolve(rebaseDir, DONE);
-		BufferedReader br = new BufferedReader(new InputStreamReader(
-				new FileInputStream(todoFile), Constants.CHARACTER_ENCODING));
+		File todoFile = getFS().resolve(rebaseDir, GIT_REBASE_TODO);
+		File doneFile = getFS().resolve(rebaseDir, DONE);
+		BufferedReader br = new BufferedReader(new InputStreamReader(getFS()
+				.fileInputStream(todoFile), Constants.CHARACTER_ENCODING));
 		try {
 			// check if the line starts with a action tag (pick, skip...)
 			while (poppedLines.size() < numSteps) {
@@ -566,7 +568,8 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 		}
 
 		BufferedWriter todoWriter = new BufferedWriter(new OutputStreamWriter(
-				new FileOutputStream(todoFile), Constants.CHARACTER_ENCODING));
+				getFS().fileOutputStream(todoFile),
+				Constants.CHARACTER_ENCODING));
 		try {
 			for (String writeLine : todoLines) {
 				todoWriter.write(writeLine);
@@ -579,8 +582,8 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 		if (poppedLines.size() > 0) {
 			// append here
 			BufferedWriter doneWriter = new BufferedWriter(
-					new OutputStreamWriter(
-							new FileOutputStream(doneFile, true),
+					new OutputStreamWriter(getFS().fileOutputStream(doneFile,
+							true),
 							Constants.CHARACTER_ENCODING));
 			try {
 				for (String writeLine : poppedLines) {
@@ -658,8 +661,10 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 		createFile(rebaseDir, ONTO, upstreamCommit.name());
 		createFile(rebaseDir, ONTO_NAME, upstreamCommitName);
 		createFile(rebaseDir, INTERACTIVE, ""); //$NON-NLS-1$
+
+		final FS fs = repo.getFS();
 		BufferedWriter fw = new BufferedWriter(new OutputStreamWriter(
-				new FileOutputStream(new File(rebaseDir, GIT_REBASE_TODO)),
+				fs.fileOutputStream(fs.resolve(rebaseDir, GIT_REBASE_TODO)),
 				Constants.CHARACTER_ENCODING));
 		fw.write("# Created by EGit: rebasing " + upstreamCommit.name()
 				+ " onto " + headId.name());
@@ -805,8 +810,8 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 
 	private void createFile(File parentDir, String name, String content)
 			throws IOException {
-		File file = new File(parentDir, name);
-		FileOutputStream fos = new FileOutputStream(file);
+		File file = repo.getFS().resolve(parentDir, name);
+		FileOutputStream fos = repo.getFS().fileOutputStream(file);
 		try {
 			fos.write(content.getBytes(Constants.CHARACTER_ENCODING));
 			fos.write('\n');

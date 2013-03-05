@@ -44,9 +44,9 @@ package org.eclipse.jgit.api;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStreamWriter;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -148,9 +148,8 @@ public class ApplyCommand extends GitCommand<ApplyResult> {
 				case COPY:
 					f = getFile(fh.getOldPath(), false);
 					byte[] bs = IO.readFully(repo.getFS(), f);
-					FileOutputStream fos = new FileOutputStream(getFile(
-							fh.getNewPath(),
-							true));
+					FileOutputStream fos = getFS().fileOutputStream(
+							getFile(fh.getNewPath(), true));
 					try {
 						fos.write(bs);
 					} finally {
@@ -169,8 +168,7 @@ public class ApplyCommand extends GitCommand<ApplyResult> {
 
 	private File getFile(String path, boolean create)
 			throws PatchApplyException {
-		File f = getRepository().getFS().resolve(getRepository().getWorkTree(),
-				path);
+		File f = getFS().resolve(getRepository().getWorkTree(), path);
 		if (create)
 			try {
 				File parent = f.getParentFile();
@@ -245,7 +243,8 @@ public class ApplyCommand extends GitCommand<ApplyResult> {
 			sb.append(l).append('\n');
 		}
 		sb.deleteCharAt(sb.length() - 1);
-		FileWriter fw = new FileWriter(f);
+		OutputStreamWriter fw = new OutputStreamWriter(getFS()
+				.fileOutputStream(f));
 		fw.write(sb.toString());
 		fw.close();
 	}

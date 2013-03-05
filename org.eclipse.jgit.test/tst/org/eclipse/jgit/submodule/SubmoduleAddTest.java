@@ -68,6 +68,7 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.storage.file.FileBasedConfig;
+import org.eclipse.jgit.util.FS;
 import org.junit.Test;
 
 /**
@@ -228,8 +229,10 @@ public class SubmoduleAddTest extends RepositoryTestCase {
 		String url1 = "git://server/repo1.git";
 		String path2 = "sub2";
 
-		FileBasedConfig modulesConfig = new FileBasedConfig(new File(
-				db.getWorkTree(), Constants.DOT_GIT_MODULES), db.getFS());
+		FileBasedConfig modulesConfig = new FileBasedConfig(
+				FS.DETECTED
+						.resolve(db.getWorkTree(), Constants.DOT_GIT_MODULES),
+				db.getFS());
 		modulesConfig.setString(ConfigConstants.CONFIG_SUBMODULE_SECTION,
 				path1, ConfigConstants.CONFIG_KEY_PATH, path1);
 		modulesConfig.setString(ConfigConstants.CONFIG_SUBMODULE_SECTION,

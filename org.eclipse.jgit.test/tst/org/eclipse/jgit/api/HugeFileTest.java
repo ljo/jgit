@@ -70,8 +70,8 @@ public class HugeFileTest extends RepositoryTestCase {
 	@Test
 	public void testAddHugeFile() throws Exception {
 		measure("Commencing test");
-		File file = new File(db.getWorkTree(), "a.txt");
-		RandomAccessFile rf = new RandomAccessFile(file, "rw");
+		File file = resolve(db.getWorkTree(), "a.txt");
+		RandomAccessFile rf = db.getFS().randomAccessFile(file, "rw");
 		rf.setLength(4429185024L);
 		rf.close();
 		measure("Created file");
@@ -94,7 +94,7 @@ public class HugeFileTest extends RepositoryTestCase {
 		assertEquals(0, status.getUntracked().size());
 
 		// Does not change anything, but modified timestamp
-		rf = new RandomAccessFile(file, "rw");
+		rf = db.getFS().randomAccessFile(file, "rw");
 		rf.write(0);
 		rf.close();
 
@@ -110,7 +110,7 @@ public class HugeFileTest extends RepositoryTestCase {
 		assertEquals(0, status.getUntracked().size());
 
 		// Change something
-		rf = new RandomAccessFile(file, "rw");
+		rf = db.getFS().randomAccessFile(file, "rw");
 		rf.write('a');
 		rf.close();
 
@@ -126,7 +126,7 @@ public class HugeFileTest extends RepositoryTestCase {
 		assertEquals(0, status.getUntracked().size());
 
 		// Truncate mod 4G and re-establish equality
-		rf = new RandomAccessFile(file, "rw");
+		rf = db.getFS().randomAccessFile(file, "rw");
 		rf.setLength(134217728L);
 		rf.write(0);
 		rf.close();
@@ -143,7 +143,7 @@ public class HugeFileTest extends RepositoryTestCase {
 		assertEquals(0, status.getUntracked().size());
 
 		// Change something
-		rf = new RandomAccessFile(file, "rw");
+		rf = db.getFS().randomAccessFile(file, "rw");
 		rf.write('a');
 		rf.close();
 
@@ -159,7 +159,7 @@ public class HugeFileTest extends RepositoryTestCase {
 		assertEquals(0, status.getUntracked().size());
 
 		// Truncate to entry length becomes negative int
-		rf = new RandomAccessFile(file, "rw");
+		rf = db.getFS().randomAccessFile(file, "rw");
 		rf.setLength(3429185024L);
 		rf.write(0);
 		rf.close();
@@ -182,7 +182,7 @@ public class HugeFileTest extends RepositoryTestCase {
 		assertEquals(0, status.getUntracked().size());
 
 		// Change something
-		rf = new RandomAccessFile(file, "rw");
+		rf = db.getFS().randomAccessFile(file, "rw");
 		rf.write('a');
 		rf.close();
 

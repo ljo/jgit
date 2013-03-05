@@ -66,14 +66,14 @@ import org.junit.Test;
 public class DiffCommandTest extends RepositoryTestCase {
 	@Test
 	public void testDiffModified() throws Exception {
-		write(new File(db.getWorkTree(), "test.txt"), "test");
-		File folder = new File(db.getWorkTree(), "folder");
+		write(resolve(db.getWorkTree(), "test.txt"), "test");
+		File folder = resolve(db.getWorkTree(), "folder");
 		folder.mkdir();
-		write(new File(folder, "folder.txt"), "folder");
+		write(resolve(folder, "folder.txt"), "folder");
 		Git git = new Git(db);
 		git.add().addFilepattern(".").call();
 		git.commit().setMessage("Initial commit").call();
-		write(new File(folder, "folder.txt"), "folder change");
+		write(resolve(folder, "folder.txt"), "folder change");
 
 		OutputStream out = new ByteArrayOutputStream();
 		List<DiffEntry> entries = git.diff().setOutputStream(out).call();
@@ -100,13 +100,13 @@ public class DiffCommandTest extends RepositoryTestCase {
 
 	@Test
 	public void testDiffCached() throws Exception {
-		write(new File(db.getWorkTree(), "test.txt"), "test");
-		File folder = new File(db.getWorkTree(), "folder");
+		write(resolve(db.getWorkTree(), "test.txt"), "test");
+		File folder = resolve(db.getWorkTree(), "folder");
 		folder.mkdir();
 		Git git = new Git(db);
 		git.add().addFilepattern(".").call();
 		git.commit().setMessage("Initial commit").call();
-		write(new File(folder, "folder.txt"), "folder");
+		write(resolve(folder, "folder.txt"), "folder");
 		git.add().addFilepattern(".").call();
 
 		OutputStream out = new ByteArrayOutputStream();
@@ -134,17 +134,17 @@ public class DiffCommandTest extends RepositoryTestCase {
 
 	@Test
 	public void testDiffTwoCommits() throws Exception {
-		write(new File(db.getWorkTree(), "test.txt"), "test");
-		File folder = new File(db.getWorkTree(), "folder");
+		write(resolve(db.getWorkTree(), "test.txt"), "test");
+		File folder = resolve(db.getWorkTree(), "folder");
 		folder.mkdir();
-		write(new File(folder, "folder.txt"), "folder");
+		write(resolve(folder, "folder.txt"), "folder");
 		Git git = new Git(db);
 		git.add().addFilepattern(".").call();
 		git.commit().setMessage("Initial commit").call();
-		write(new File(folder, "folder.txt"), "folder change");
+		write(resolve(folder, "folder.txt"), "folder change");
 		git.add().addFilepattern(".").call();
 		git.commit().setMessage("second commit").call();
-		write(new File(folder, "folder.txt"), "second folder change");
+		write(resolve(folder, "folder.txt"), "second folder change");
 		git.add().addFilepattern(".").call();
 		git.commit().setMessage("third commit").call();
 
@@ -182,11 +182,11 @@ public class DiffCommandTest extends RepositoryTestCase {
 
 	@Test
 	public void testDiffWithPrefixes() throws Exception {
-		write(new File(db.getWorkTree(), "test.txt"), "test");
+		write(resolve(db.getWorkTree(), "test.txt"), "test");
 		Git git = new Git(db);
 		git.add().addFilepattern(".").call();
 		git.commit().setMessage("Initial commit").call();
-		write(new File(db.getWorkTree(), "test.txt"), "test change");
+		write(resolve(db.getWorkTree(), "test.txt"), "test change");
 
 		OutputStream out = new ByteArrayOutputStream();
 		git.diff().setOutputStream(out).setSourcePrefix("old/")
@@ -204,12 +204,12 @@ public class DiffCommandTest extends RepositoryTestCase {
 
 	@Test
 	public void testDiffWithNegativeLineCount() throws Exception {
-		write(new File(db.getWorkTree(), "test.txt"),
+		write(resolve(db.getWorkTree(), "test.txt"),
 				"0\n1\n2\n3\n4\n5\n6\n7\n8\n9");
 		Git git = new Git(db);
 		git.add().addFilepattern(".").call();
 		git.commit().setMessage("Initial commit").call();
-		write(new File(db.getWorkTree(), "test.txt"),
+		write(resolve(db.getWorkTree(), "test.txt"),
 				"0\n1\n2\n3\n4a\n5\n6\n7\n8\n9");
 
 		OutputStream out = new ByteArrayOutputStream();

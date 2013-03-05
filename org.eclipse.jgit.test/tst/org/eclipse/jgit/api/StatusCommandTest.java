@@ -46,7 +46,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
@@ -114,7 +113,7 @@ public class StatusCommandTest extends RepositoryTestCase {
 		assertEquals(0, stat.getUntracked().size());
 
 		deleteTrashFile("a");
-		assertFalse(new File(git.getRepository().getWorkTree(), "a").exists());
+		assertFalse(resolve(git.getRepository().getWorkTree(), "a").exists());
 		git.add().addFilepattern("a").setUpdate(true).call();
 		writeTrashFile("a", "recreated content of a");
 		stat = git.status().call();

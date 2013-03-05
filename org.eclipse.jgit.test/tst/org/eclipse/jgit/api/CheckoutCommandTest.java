@@ -155,7 +155,7 @@ public class CheckoutCommandTest extends RepositoryTestCase {
 	@Test
 	public void testCheckoutWithNonDeletedFiles() throws Exception {
 		File testFile = writeTrashFile("temp", "");
-		FileInputStream fis = new FileInputStream(testFile);
+		FileInputStream fis = db.getFS().fileInputStream(testFile);
 		try {
 			FileUtils.delete(testFile);
 			return;
@@ -168,7 +168,7 @@ public class CheckoutCommandTest extends RepositoryTestCase {
 		FileUtils.delete(testFile);
 		CheckoutCommand co = git.checkout();
 		// delete Test.txt in branch test
-		testFile = new File(db.getWorkTree(), "Test.txt");
+		testFile = resolve(db.getWorkTree(), "Test.txt");
 		assertTrue(testFile.exists());
 		FileUtils.delete(testFile);
 		assertFalse(testFile.exists());
@@ -177,7 +177,7 @@ public class CheckoutCommandTest extends RepositoryTestCase {
 		git.checkout().setName("master").call();
 		assertTrue(testFile.exists());
 		// lock the file so it can't be deleted (in Windows, that is)
-		fis = new FileInputStream(testFile);
+		fis = db.getFS().fileInputStream(testFile);
 		try {
 			assertEquals(Status.NOT_TRIED, co.getResult().getStatus());
 			co.setName("test").call();
@@ -230,7 +230,7 @@ public class CheckoutCommandTest extends RepositoryTestCase {
 				.call();
 		git.commit().setMessage("Added dir").call();
 
-		File dir = new File(db.getWorkTree(), "dir");
+		File dir = resolve(db.getWorkTree(), "dir");
 		FileUtils.delete(dir, FileUtils.RECURSIVE);
 
 		git.checkout().addPath("dir/a.txt").call();
@@ -321,7 +321,7 @@ public class CheckoutCommandTest extends RepositoryTestCase {
 		RefUpdate rup = db.updateRef(Constants.HEAD);
 		rup.link("refs/heads/test2");
 
-		File file = new File(db.getWorkTree(), "Test.txt");
+		File file = resolve(db.getWorkTree(), "Test.txt");
 		long size = file.length();
 		long mTime = file.lastModified() - 5000L;
 		assertTrue(file.setLastModified(mTime));

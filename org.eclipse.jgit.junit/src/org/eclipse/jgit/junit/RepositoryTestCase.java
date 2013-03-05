@@ -77,6 +77,7 @@ import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.storage.file.FileRepository;
 import org.eclipse.jgit.treewalk.FileTreeIterator;
+import org.eclipse.jgit.util.FS;
 import org.eclipse.jgit.util.FileUtils;
 import org.junit.Before;
 
@@ -127,7 +128,8 @@ public abstract class RepositoryTestCase extends LocalDiskRepositoryTestCase {
 
 	protected static void checkFile(File f, final String checkData)
 			throws IOException {
-		Reader r = new InputStreamReader(new FileInputStream(f), "ISO-8859-1");
+		Reader r = new InputStreamReader(FS.DETECTED.fileInputStream(f),
+				"UTF-8"); // "ISO-8859-1");
 		try {
 			char[] data = new char[(int) f.length()];
 			if (f.length() !=  r.read(data))
@@ -505,7 +507,15 @@ public abstract class RepositoryTestCase extends LocalDiskRepositoryTestCase {
 				.getFS().fileOutputStream(file))), false);
 	}
 
+	protected File resolve(final String dir, final String name) {
+		return db.getFS().resolve(dir, name);
+	}
+
 	protected File resolve(final File dir, final String name) {
+		return db.getFS().resolve(dir, name);
+	}
+
+	protected File resolve(final String name) {
 		return db.getFS().resolve(db.getWorkTree(), name);
 	}
 }

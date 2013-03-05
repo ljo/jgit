@@ -47,10 +47,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.RandomAccessFile;
 
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.NoFilepatternException;
@@ -636,6 +640,34 @@ public class AddCommandTest extends RepositoryTestCase {
 			public boolean isCaseSensitive() {
 				return false;
 			}
+			
+			public FileOutputStream fileOutputStream(File file) throws FileNotFoundException {
+				return FS.DETECTED.fileOutputStream(file);
+			}
+
+			public FileOutputStream fileOutputStream(File file, boolean append) throws FileNotFoundException {
+				return FS.DETECTED.fileOutputStream(file, append);
+			}
+
+			public File createTempFile(String prefix, String suffix) throws IOException {
+				return FS.DETECTED.createTempFile(prefix, suffix);
+			}
+
+			public File createTempFile(String prefix, String suffix, File directory) throws IOException {
+				return FS.DETECTED.createTempFile(prefix, suffix, directory);
+			}
+
+			public RandomAccessFile randomAccessFile(File file, String mode) throws FileNotFoundException {
+				return FS.DETECTED.randomAccessFile(file, mode);
+			}
+
+			public FileInputStream fileInputStream(File file) throws FileNotFoundException {
+				return FS.DETECTED.fileInputStream(file);
+			}
+
+			public BufferedReader bufferedReader(File f) throws FileNotFoundException {
+				return FS.DETECTED.bufferedReader(f);
+			}
 		};
 
 		Git git = Git.open(db.getDirectory(), executableFs);
@@ -680,6 +712,34 @@ public class AddCommandTest extends RepositoryTestCase {
 			@Override
 			public boolean isCaseSensitive() {
 				return false;
+			}
+
+			public FileOutputStream fileOutputStream(File file) throws FileNotFoundException {
+				return FS.DETECTED.fileOutputStream(file);
+			}
+
+			public FileOutputStream fileOutputStream(File file, boolean append) throws FileNotFoundException {
+				return FS.DETECTED.fileOutputStream(file, append);
+			}
+
+			public File createTempFile(String prefix, String suffix) throws IOException {
+				return FS.DETECTED.createTempFile(prefix, suffix);
+			}
+
+			public File createTempFile(String prefix, String suffix, File directory) throws IOException {
+				return FS.DETECTED.createTempFile(prefix, suffix, directory);
+			}
+
+			public RandomAccessFile randomAccessFile(File file, String mode) throws FileNotFoundException {
+				return FS.DETECTED.randomAccessFile(file, mode);
+			}
+
+			public FileInputStream fileInputStream(File file) throws FileNotFoundException {
+				return FS.DETECTED.fileInputStream(file);
+			}
+
+			public BufferedReader bufferedReader(File f) throws FileNotFoundException {
+				return FS.DETECTED.bufferedReader(f);
 			}
 		};
 

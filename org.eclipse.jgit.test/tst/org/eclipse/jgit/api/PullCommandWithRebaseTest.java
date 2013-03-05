@@ -71,6 +71,7 @@ import org.eclipse.jgit.storage.file.FileRepository;
 import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.transport.RemoteConfig;
 import org.eclipse.jgit.transport.URIish;
+import org.eclipse.jgit.util.FS;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -252,7 +253,7 @@ public class PullCommandWithRebaseTest extends RepositoryTestCase {
 		source.commit().setMessage(SOURCE_COMMIT_MESSAGE).call();
 
 		// create commit in target, not conflicting with the new commit in source
-		File newFile = new File(dbTarget.getWorkTree().getPath() + "/newFile.txt");
+		File newFile = resolve(dbTarget.getWorkTree().getPath() + "/newFile.txt");
 		writeToFile(newFile, NEW_FILE_CONTENTS);
 		target.add().addFilepattern(newFile.getName()).call();
 		target.commit().setMessage(TARGET_COMMIT_MESSAGE).call();
@@ -305,7 +306,7 @@ public class PullCommandWithRebaseTest extends RepositoryTestCase {
 		target = new Git(dbTarget);
 
 		// put some file in the source repo
-		sourceFile = new File(db.getWorkTree(), "SomeFile.txt");
+		sourceFile = resolve(db.getWorkTree(), "SomeFile.txt");
 		writeToFile(sourceFile, "Hello world");
 		// and commit it
 		source.add().addFilepattern("SomeFile.txt").call();
@@ -326,7 +327,7 @@ public class PullCommandWithRebaseTest extends RepositoryTestCase {
 		config.update(targetConfig);
 		targetConfig.save();
 
-		targetFile = new File(dbTarget.getWorkTree(), "SomeFile.txt");
+		targetFile = resolve(dbTarget.getWorkTree(), "SomeFile.txt");
 		// make sure we have the same content
 		target.pull().call();
 		target.checkout().setStartPoint("refs/remotes/origin/master").setName(
@@ -344,7 +345,7 @@ public class PullCommandWithRebaseTest extends RepositoryTestCase {
 			throws IOException {
 		FileOutputStream fos = null;
 		try {
-			fos = new FileOutputStream(actFile);
+			fos = FS.DETECTED.fileOutputStream(actFile);
 			fos.write(string.getBytes("UTF-8"));
 			fos.close();
 		} finally {
@@ -359,7 +360,7 @@ public class PullCommandWithRebaseTest extends RepositoryTestCase {
 		FileInputStream fis = null;
 		byte[] buffer = new byte[100];
 		try {
-			fis = new FileInputStream(actFile);
+			fis = FS.DETECTED.fileInputStream(actFile);
 			int read = fis.read(buffer);
 			while (read > 0) {
 				bos.write(buffer, 0, read);

@@ -50,7 +50,6 @@ import static org.junit.Assert.fail;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Iterator;
@@ -114,20 +113,20 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		git.add().addFilepattern(FILE1).call();
 		RevCommit first = git.commit().setMessage("Add file1").call();
 
-		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+		assertTrue(resolve(db.getWorkTree(), FILE1).exists());
 		// create a topic branch
 		createBranch(first, "refs/heads/topic");
 		// create file2 on master
 		File file2 = writeTrashFile("file2", "file2");
 		git.add().addFilepattern("file2").call();
 		git.commit().setMessage("Add file2").call();
-		assertTrue(new File(db.getWorkTree(), "file2").exists());
+		assertTrue(resolve(db.getWorkTree(), "file2").exists());
 
 		checkoutBranch("refs/heads/topic");
-		assertFalse(new File(db.getWorkTree(), "file2").exists());
+		assertFalse(resolve(db.getWorkTree(), "file2").exists());
 
 		RebaseResult res = git.rebase().setUpstream("refs/heads/master").call();
-		assertTrue(new File(db.getWorkTree(), "file2").exists());
+		assertTrue(resolve(db.getWorkTree(), "file2").exists());
 		checkFile(file2, "file2");
 		assertEquals(Status.FAST_FORWARD, res.getStatus());
 	}
@@ -139,24 +138,24 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		git.add().addFilepattern(FILE1).call();
 		RevCommit first = git.commit().setMessage("Add file1").call();
 
-		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+		assertTrue(resolve(db.getWorkTree(), FILE1).exists());
 		// create a topic branch
 		createBranch(first, "refs/heads/topic");
 		// create file2 on master
 		File file2 = writeTrashFile("file2", "file2");
 		git.add().addFilepattern("file2").call();
 		git.commit().setMessage("Add file2").call();
-		assertTrue(new File(db.getWorkTree(), "file2").exists());
+		assertTrue(resolve(db.getWorkTree(), "file2").exists());
 		// write a second commit
 		writeTrashFile("file2", "file2 new content");
 		git.add().addFilepattern("file2").call();
 		git.commit().setMessage("Change content of file2").call();
 
 		checkoutBranch("refs/heads/topic");
-		assertFalse(new File(db.getWorkTree(), "file2").exists());
+		assertFalse(resolve(db.getWorkTree(), "file2").exists());
 
 		RebaseResult res = git.rebase().setUpstream("refs/heads/master").call();
-		assertTrue(new File(db.getWorkTree(), "file2").exists());
+		assertTrue(resolve(db.getWorkTree(), "file2").exists());
 		checkFile(file2, "file2 new content");
 		assertEquals(Status.FAST_FORWARD, res.getStatus());
 	}
@@ -181,7 +180,7 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		writeTrashFile(FILE1, FILE1);
 		git.add().addFilepattern(FILE1).call();
 		RevCommit first = git.commit().setMessage("Add file1").call();
-		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+		assertTrue(resolve(db.getWorkTree(), FILE1).exists());
 
 		// create a topic branch
 		createBranch(first, "refs/heads/topic");
@@ -204,7 +203,7 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		writeTrashFile("file2", "file2");
 		git.add().addFilepattern("file2").call();
 		git.commit().setMessage("Add file2").call();
-		assertTrue(new File(db.getWorkTree(), "file2").exists());
+		assertTrue(resolve(db.getWorkTree(), "file2").exists());
 
 		// switch to side branch and update file2
 		checkoutBranch("refs/heads/side");
@@ -250,7 +249,7 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		git.add().addFilepattern(FILE1).call();
 		RevCommit first = git.commit().setMessage("Add file1").call();
 
-		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+		assertTrue(resolve(db.getWorkTree(), FILE1).exists());
 
 		RebaseResult res = git.rebase().setUpstream(first).call();
 		assertEquals(Status.UP_TO_DATE, res.getStatus());
@@ -263,7 +262,7 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		git.add().addFilepattern(FILE1).call();
 		git.commit().setMessage("Add file1").call();
 
-		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+		assertTrue(resolve(db.getWorkTree(), FILE1).exists());
 
 		try {
 			git.rebase().setUpstream("refs/heads/xyz").call();
@@ -279,7 +278,7 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		File theFile = writeTrashFile(FILE1, "1\n2\n3\n");
 		git.add().addFilepattern(FILE1).call();
 		RevCommit second = git.commit().setMessage("Add file1").call();
-		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+		assertTrue(resolve(db.getWorkTree(), FILE1).exists());
 		// change first line in master and commit
 		writeTrashFile(FILE1, "1master\n2\n3\n");
 		checkFile(theFile, "1master\n2\n3\n");
@@ -293,7 +292,7 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		// we have the old content again
 		checkFile(theFile, "1\n2\n3\n");
 
-		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+		assertTrue(resolve(db.getWorkTree(), FILE1).exists());
 		// change third line in topic branch
 		writeTrashFile(FILE1, "1\n2\n3\ntopic\n");
 		git.add().addFilepattern(FILE1).call();
@@ -316,7 +315,7 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		File theFile = writeTrashFile(FILE1, "1\n2\n3\n");
 		git.add().addFilepattern(FILE1).call();
 		RevCommit second = git.commit().setMessage("Add file1").call();
-		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+		assertTrue(resolve(db.getWorkTree(), FILE1).exists());
 		// change first line in master and commit
 		writeTrashFile(FILE1, "1master\n2\n3\n");
 		checkFile(theFile, "1master\n2\n3\n");
@@ -330,7 +329,7 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		// we have the old content again
 		checkFile(theFile, "1\n2\n3\n");
 
-		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+		assertTrue(resolve(db.getWorkTree(), FILE1).exists());
 		// change third line in topic branch
 		writeTrashFile(FILE1, "1\n2\n3\ntopic\n");
 		git.add().addFilepattern(FILE1).call();
@@ -371,16 +370,16 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		git.add().addFilepattern("file3").call();
 		git.commit().setMessage("Add file3 to branch file3").call();
 
-		assertTrue(new File(db.getWorkTree(), FILE1).exists());
-		assertFalse(new File(db.getWorkTree(), "file2").exists());
-		assertTrue(new File(db.getWorkTree(), "file3").exists());
+		assertTrue(resolve(db.getWorkTree(), FILE1).exists());
+		assertFalse(resolve(db.getWorkTree(), "file2").exists());
+		assertTrue(resolve(db.getWorkTree(), "file3").exists());
 
 		RebaseResult res = git.rebase().setUpstream("refs/heads/file2").call();
 		assertEquals(Status.OK, res.getStatus());
 
-		assertTrue(new File(db.getWorkTree(), FILE1).exists());
-		assertTrue(new File(db.getWorkTree(), "file2").exists());
-		assertTrue(new File(db.getWorkTree(), "file3").exists());
+		assertTrue(resolve(db.getWorkTree(), FILE1).exists());
+		assertTrue(resolve(db.getWorkTree(), "file2").exists());
+		assertTrue(resolve(db.getWorkTree(), "file3").exists());
 
 		// our old branch should be checked out again
 		assertEquals("refs/heads/file3", db.getFullBranch());
@@ -388,9 +387,9 @@ public class RebaseCommandTest extends RepositoryTestCase {
 				db.resolve(Constants.HEAD)).getParent(0));
 
 		checkoutBranch("refs/heads/file2");
-		assertTrue(new File(db.getWorkTree(), FILE1).exists());
-		assertTrue(new File(db.getWorkTree(), "file2").exists());
-		assertFalse(new File(db.getWorkTree(), "file3").exists());
+		assertTrue(resolve(db.getWorkTree(), FILE1).exists());
+		assertTrue(resolve(db.getWorkTree(), "file2").exists());
+		assertFalse(resolve(db.getWorkTree(), "file3").exists());
 	}
 
 	@Test
@@ -427,7 +426,7 @@ public class RebaseCommandTest extends RepositoryTestCase {
 
 		assertEquals(RepositoryState.REBASING_INTERACTIVE, db
 				.getRepositoryState());
-		assertTrue(new File(db.getDirectory(), "rebase-merge").exists());
+		assertTrue(resolve(db.getDirectory(), "rebase-merge").exists());
 		// the first one should be included, so we should have left two picks in
 		// the file
 		assertEquals(1, countPicks());
@@ -451,7 +450,7 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		assertEquals(RepositoryState.SAFE, db.getRepositoryState());
 
 		// rebase- dir in .git must be deleted
-		assertFalse(new File(db.getDirectory(), "rebase-merge").exists());
+		assertFalse(resolve(db.getDirectory(), "rebase-merge").exists());
 	}
 
 	@Test
@@ -874,7 +873,7 @@ public class RebaseCommandTest extends RepositoryTestCase {
 	}
 
 	private void checkFile(String fileName, String... lines) throws Exception {
-		File file = new File(db.getWorkTree(), fileName);
+		File file = resolve(db.getWorkTree(), fileName);
 		StringBuilder sb = new StringBuilder();
 		for (String line : lines) {
 			sb.append(line);
@@ -941,7 +940,7 @@ public class RebaseCommandTest extends RepositoryTestCase {
 
 		assertEquals(RepositoryState.REBASING_INTERACTIVE, db
 				.getRepositoryState());
-		assertTrue(new File(db.getDirectory(), "rebase-merge").exists());
+		assertTrue(resolve(db.getDirectory(), "rebase-merge").exists());
 		// the first one should be included, so we should have left two picks in
 		// the file
 		assertEquals(0, countPicks());
@@ -961,7 +960,7 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		assertEquals(RepositoryState.SAFE, db.getRepositoryState());
 
 		// rebase- dir in .git must be deleted
-		assertFalse(new File(db.getDirectory(), "rebase-merge").exists());
+		assertFalse(resolve(db.getDirectory(), "rebase-merge").exists());
 
 		assertTrue(file2.exists());
 		assertFalse(file3.exists());
@@ -1384,8 +1383,8 @@ public class RebaseCommandTest extends RepositoryTestCase {
 	private int countPicks() throws IOException {
 		int count = 0;
 		File todoFile = getTodoFile();
-		BufferedReader br = new BufferedReader(new InputStreamReader(
-				new FileInputStream(todoFile), "UTF-8"));
+		BufferedReader br = new BufferedReader(new InputStreamReader(db.getFS()
+				.fileInputStream(todoFile), "UTF-8"));
 		try {
 			String line = br.readLine();
 			while (line != null) {
@@ -1413,7 +1412,7 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		writeTrashFile(FILE1, FILE1);
 		git.add().addFilepattern(FILE1).call();
 		RevCommit first = git.commit().setMessage("Add file1").call();
-		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+		assertTrue(resolve(db.getWorkTree(), FILE1).exists());
 
 		// create a topic branch
 		createBranch(first, "refs/heads/topic");
@@ -1422,7 +1421,7 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		writeTrashFile("file2", "file2");
 		git.add().addFilepattern("file2").call();
 		RevCommit second = git.commit().setMessage("Add file2").call();
-		assertTrue(new File(db.getWorkTree(), "file2").exists());
+		assertTrue(resolve(db.getWorkTree(), "file2").exists());
 
 		// create side branch
 		createBranch(second, "refs/heads/side");
@@ -1449,8 +1448,8 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		// switch back to topic branch and rebase it onto master
 		checkoutBranch("refs/heads/topic");
 		RebaseResult res = git.rebase().setUpstream("refs/heads/master").call();
-		assertTrue(new File(db.getWorkTree(), "file2").exists());
-		checkFile(new File(db.getWorkTree(), "file2"), "more change");
+		assertTrue(resolve(db.getWorkTree(), "file2").exists());
+		checkFile(resolve(db.getWorkTree(), "file2"), "more change");
 		assertEquals(Status.FAST_FORWARD, res.getStatus());
 	}
 
@@ -1524,13 +1523,13 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		writeTrashFile(FILE1, FILE1);
 		git.add().addFilepattern(FILE1).call();
 		git.commit().setMessage("Add file1").call();
-		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+		assertTrue(resolve(db.getWorkTree(), FILE1).exists());
 
 		// create file2 on master
 		writeTrashFile("file2", "file2");
 		git.add().addFilepattern("file2").call();
 		git.commit().setMessage("Add file2").call();
-		assertTrue(new File(db.getWorkTree(), "file2").exists());
+		assertTrue(resolve(db.getWorkTree(), "file2").exists());
 
 		// update FILE1 on master
 		writeTrashFile(FILE1, "blah");
@@ -1550,8 +1549,8 @@ public class RebaseCommandTest extends RepositoryTestCase {
 						return "rewritten commit message";
 					}
 				}).call();
-		assertTrue(new File(db.getWorkTree(), "file2").exists());
-		checkFile(new File(db.getWorkTree(), "file2"), "more change");
+		assertTrue(resolve(db.getWorkTree(), "file2").exists());
+		checkFile(resolve(db.getWorkTree(), "file2"), "more change");
 		assertEquals(Status.OK, res.getStatus());
 		Iterator<RevCommit> logIterator = git.log().all().call().iterator();
 		logIterator.next(); // skip first commit;
@@ -1565,13 +1564,13 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		writeTrashFile(FILE1, FILE1);
 		git.add().addFilepattern(FILE1).call();
 		git.commit().setMessage("Add file1").call();
-		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+		assertTrue(resolve(db.getWorkTree(), FILE1).exists());
 
 		// create file2 on master
 		writeTrashFile("file2", "file2");
 		git.add().addFilepattern("file2").call();
 		git.commit().setMessage("Add file2").call();
-		assertTrue(new File(db.getWorkTree(), "file2").exists());
+		assertTrue(resolve(db.getWorkTree(), "file2").exists());
 
 		// update FILE1 on master
 		writeTrashFile(FILE1, "blah");
@@ -1603,7 +1602,7 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		// resume rebase
 		res = git.rebase().setOperation(Operation.CONTINUE).call();
 
-		checkFile(new File(db.getWorkTree(), "file1"), "edited");
+		checkFile(resolve(db.getWorkTree(), "file1"), "edited");
 		assertEquals(Status.OK, res.getStatus());
 		Iterator<RevCommit> logIterator = git.log().all().call().iterator();
 		logIterator.next(); // skip first commit;
@@ -1612,7 +1611,7 @@ public class RebaseCommandTest extends RepositoryTestCase {
 	}
 
 	private File getTodoFile() {
-		File todoFile = new File(db.getDirectory(),
+		File todoFile = resolve(db.getDirectory(),
 				"rebase-merge/git-rebase-todo");
 		return todoFile;
 	}

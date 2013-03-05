@@ -104,7 +104,7 @@ public class PathCheckoutCommandTest extends RepositoryTestCase {
 		assertEquals("", read(written));
 		co.addPath(FILE1).call();
 		assertEquals("3", read(written));
-		assertEquals("c", read(new File(db.getWorkTree(), FILE2)));
+		assertEquals("c", read(resolve(db.getWorkTree(), FILE2)));
 	}
 
 	@Test
@@ -113,7 +113,7 @@ public class PathCheckoutCommandTest extends RepositoryTestCase {
 		File written = writeTrashFile(FILE1, "");
 		co.setStartPoint(initialCommit).addPath(FILE1).call();
 		assertEquals("1", read(written));
-		assertEquals("c", read(new File(db.getWorkTree(), FILE2)));
+		assertEquals("c", read(resolve(db.getWorkTree(), FILE2)));
 	}
 
 	@Test
@@ -122,7 +122,7 @@ public class PathCheckoutCommandTest extends RepositoryTestCase {
 		File written = writeTrashFile(FILE1, "");
 		co.setStartPoint("HEAD~1").addPath(FILE1).call();
 		assertEquals("2", read(written));
-		assertEquals("c", read(new File(db.getWorkTree(), FILE2)));
+		assertEquals("c", read(resolve(db.getWorkTree(), FILE2)));
 	}
 
 	@Test
@@ -144,7 +144,7 @@ public class PathCheckoutCommandTest extends RepositoryTestCase {
 		assertEquals("", read(written));
 		co.addPath(FILE1).call();
 		assertEquals("3a", read(written));
-		assertEquals("c", read(new File(db.getWorkTree(), FILE2)));
+		assertEquals("c", read(resolve(db.getWorkTree(), FILE2)));
 	}
 
 	@Test
@@ -157,7 +157,7 @@ public class PathCheckoutCommandTest extends RepositoryTestCase {
 		assertEquals("", read(written));
 		co.addPath(FILE1).setStartPoint("HEAD").call();
 		assertEquals("3", read(written));
-		assertEquals("c", read(new File(db.getWorkTree(), FILE2)));
+		assertEquals("c", read(resolve(db.getWorkTree(), FILE2)));
 	}
 
 	@Test

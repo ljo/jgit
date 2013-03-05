@@ -69,6 +69,7 @@ import org.eclipse.jgit.storage.file.FileRepository;
 import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.transport.RemoteConfig;
 import org.eclipse.jgit.transport.URIish;
+import org.eclipse.jgit.util.FS;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -126,7 +127,7 @@ public class PullCommandTest extends RepositoryTestCase {
 		RevCommit sourceCommit = source.commit()
 				.setMessage("Source change in remote").call();
 
-		File targetFile2 = new File(dbTarget.getWorkTree(), "OtherFile.txt");
+		File targetFile2 = resolve(dbTarget.getWorkTree(), "OtherFile.txt");
 		writeToFile(targetFile2, "Unconflicting change");
 		target.add().addFilepattern("OtherFile.txt").call();
 		RevCommit targetCommit = target.commit()
@@ -241,7 +242,7 @@ public class PullCommandTest extends RepositoryTestCase {
 		target = new Git(dbTarget);
 
 		// put some file in the source repo
-		sourceFile = new File(db.getWorkTree(), "SomeFile.txt");
+		sourceFile = resolve(db.getWorkTree(), "SomeFile.txt");
 		writeToFile(sourceFile, "Hello world");
 		// and commit it
 		source.add().addFilepattern("SomeFile.txt").call();
@@ -262,7 +263,7 @@ public class PullCommandTest extends RepositoryTestCase {
 		config.update(targetConfig);
 		targetConfig.save();
 
-		targetFile = new File(dbTarget.getWorkTree(), "SomeFile.txt");
+		targetFile = resolve(dbTarget.getWorkTree(), "SomeFile.txt");
 		// make sure we have the same content
 		target.pull().call();
 		assertFileContentsEqual(targetFile, "Hello world");
@@ -272,7 +273,7 @@ public class PullCommandTest extends RepositoryTestCase {
 			throws IOException {
 		FileOutputStream fos = null;
 		try {
-			fos = new FileOutputStream(actFile);
+			fos = FS.DETECTED.fileOutputStream(actFile);
 			fos.write(string.getBytes("UTF-8"));
 			fos.close();
 		} finally {
@@ -287,7 +288,7 @@ public class PullCommandTest extends RepositoryTestCase {
 		FileInputStream fis = null;
 		byte[] buffer = new byte[100];
 		try {
-			fis = new FileInputStream(actFile);
+			fis = FS.DETECTED.fileInputStream(actFile);
 			int read = fis.read(buffer);
 			while (read > 0) {
 				bos.write(buffer, 0, read);

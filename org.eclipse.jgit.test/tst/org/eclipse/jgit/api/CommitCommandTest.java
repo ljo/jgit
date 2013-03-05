@@ -47,7 +47,13 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
@@ -119,6 +125,34 @@ public class CommitCommandTest extends RepositoryTestCase {
 			@Override
 			public boolean isCaseSensitive() {
 				return true;
+			}
+
+			public FileOutputStream fileOutputStream(File file) throws FileNotFoundException {
+				return FS.DETECTED.fileOutputStream(file);
+			}
+
+			public FileOutputStream fileOutputStream(File file, boolean append) throws FileNotFoundException {
+				return FS.DETECTED.fileOutputStream(file, append);
+			}
+
+			public File createTempFile(String prefix, String suffix) throws IOException {
+				return FS.DETECTED.createTempFile(prefix, suffix);
+			}
+
+			public File createTempFile(String prefix, String suffix, File directory) throws IOException {
+				return FS.DETECTED.createTempFile(prefix, suffix, directory);
+			}
+
+			public RandomAccessFile randomAccessFile(File file, String mode) throws FileNotFoundException {
+				return FS.DETECTED.randomAccessFile(file, mode);
+			}
+
+			public FileInputStream fileInputStream(File file) throws FileNotFoundException {
+				return FS.DETECTED.fileInputStream(file);
+			}
+
+			public BufferedReader bufferedReader(File f) throws FileNotFoundException {
+				return FS.DETECTED.bufferedReader(f);
 			}
 		};
 
@@ -397,22 +431,22 @@ public class CommitCommandTest extends RepositoryTestCase {
 		git.add().addFilepattern("file1").call();
 		RevCommit first = git.commit().setMessage("initial commit").call();
 
-		assertTrue(new File(db.getWorkTree(), "file1").exists());
+		assertTrue(resolve(db.getWorkTree(), "file1").exists());
 		createBranch(first, "refs/heads/branch1");
 		checkoutBranch("refs/heads/branch1");
 
 		writeTrashFile("file2", "file2");
 		git.add().addFilepattern("file2").call();
 		git.commit().setMessage("second commit").call();
-		assertTrue(new File(db.getWorkTree(), "file2").exists());
+		assertTrue(resolve(db.getWorkTree(), "file2").exists());
 
 		checkoutBranch("refs/heads/master");
 
 		MergeResult result = git.merge().include(db.getRef("branch1"))
 				.setSquash(true).call();
 
-		assertTrue(new File(db.getWorkTree(), "file1").exists());
-		assertTrue(new File(db.getWorkTree(), "file2").exists());
+		assertTrue(resolve(db.getWorkTree(), "file1").exists());
+		assertTrue(resolve(db.getWorkTree(), "file2").exists());
 		assertEquals(MergeResult.MergeStatus.FAST_FORWARD_SQUASHED,
 				result.getMergeStatus());
 
