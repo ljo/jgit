@@ -47,7 +47,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -66,6 +65,7 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.storage.file.FileBasedConfig;
+import org.eclipse.jgit.util.FS;
 import org.junit.Test;
 
 /**
@@ -102,8 +102,10 @@ public class SubmoduleSyncTest extends RepositoryTestCase {
 		});
 		editor.commit();
 
-		FileBasedConfig modulesConfig = new FileBasedConfig(new File(
-				db.getWorkTree(), Constants.DOT_GIT_MODULES), db.getFS());
+		final FS fs = db.getFS();
+
+		FileBasedConfig modulesConfig = new FileBasedConfig(fs.resolve(
+				db.getWorkTree(), Constants.DOT_GIT_MODULES), fs);
 		modulesConfig.setString(ConfigConstants.CONFIG_SUBMODULE_SECTION, path,
 				ConfigConstants.CONFIG_KEY_PATH, path);
 		String url = "git://server/repo.git";
@@ -113,7 +115,8 @@ public class SubmoduleSyncTest extends RepositoryTestCase {
 
 		Repository subRepo = Git.cloneRepository()
 				.setURI(db.getDirectory().toURI().toString())
-				.setDirectory(new File(db.getWorkTree(), path)).call()
+				.setDirectory(fs.resolve(db.getWorkTree(), path))
+				.call()
 				.getRepository();
 		addRepoToClose(subRepo);
 		assertNotNull(subRepo);
@@ -170,8 +173,10 @@ public class SubmoduleSyncTest extends RepositoryTestCase {
 				base);
 		config.save();
 
-		FileBasedConfig modulesConfig = new FileBasedConfig(new File(
-				db.getWorkTree(), Constants.DOT_GIT_MODULES), db.getFS());
+		final FS fs = db.getFS();
+
+		FileBasedConfig modulesConfig = new FileBasedConfig(fs.resolve(
+				db.getWorkTree(), Constants.DOT_GIT_MODULES), fs);
 		modulesConfig.setString(ConfigConstants.CONFIG_SUBMODULE_SECTION, path,
 				ConfigConstants.CONFIG_KEY_PATH, path);
 		String current = "git://server/repo.git";
@@ -181,7 +186,8 @@ public class SubmoduleSyncTest extends RepositoryTestCase {
 
 		Repository subRepo = Git.cloneRepository()
 				.setURI(db.getDirectory().toURI().toString())
-				.setDirectory(new File(db.getWorkTree(), path)).call()
+				.setDirectory(fs.resolve(db.getWorkTree(), path))
+				.call()
 				.getRepository();
 		assertNotNull(subRepo);
 		addRepoToClose(subRepo);

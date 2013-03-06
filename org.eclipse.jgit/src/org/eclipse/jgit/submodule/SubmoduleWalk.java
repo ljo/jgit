@@ -198,10 +198,10 @@ public class SubmoduleWalk {
 	 */
 	public static Repository getSubmoduleRepository(final File parent,
 			final String path) throws IOException {
-		File subWorkTree = new File(parent, path);
+		File subWorkTree = FS.DETECTED.resolve(parent, path);
 		if (!subWorkTree.isDirectory())
 			return null;
-		File workTree = new File(parent, path);
+		File workTree = FS.DETECTED.resolve(parent, path);
 		try {
 			return new RepositoryBuilder() //
 					.setMustExist(true) //
@@ -385,8 +385,8 @@ public class SubmoduleWalk {
 	 */
 	public SubmoduleWalk loadModulesConfig() throws IOException, ConfigInvalidException {
 		if (rootTree == null) {
-			File modulesFile = new File(repository.getWorkTree(),
-					Constants.DOT_GIT_MODULES);
+			File modulesFile = repository.getFS().resolve(
+					repository.getWorkTree(), Constants.DOT_GIT_MODULES);
 			FileBasedConfig config = new FileBasedConfig(modulesFile,
 					repository.getFS());
 			config.load();
