@@ -48,13 +48,13 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.eclipse.jgit</groupId>
-    <artifactId>org.eclipse.jgit-parent</artifactId>
-    <version>2.4.0-SNAPSHOT</version>
+    <groupId>org.exist-db.jgit</groupId>
+    <artifactId>existdb.jgit-parent</artifactId>
+    <version>2.4.0.M02</version>
   </parent>
 
-  <artifactId>org.eclipse.jgit.junit.http</artifactId>
-  <name>JGit - JUnit Http Utility Classes</name>
+  <artifactId>existdb.jgit.junit.http</artifactId>
+  <name>eXistDB :: JGit :: JUnit Http Utility Classes</name>
 
   <description>
     Utility classes to support Http based JUnit testing of JGit applications.
@@ -66,8 +66,8 @@
 
   <dependencies>
     <dependency>
-      <groupId>org.eclipse.jgit</groupId>
-      <artifactId>org.eclipse.jgit</artifactId>
+      <groupId>org.exist-db.jgit</groupId>
+      <artifactId>existdb.jgit</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -78,14 +78,14 @@
     </dependency>
 
     <dependency>
-      <groupId>org.eclipse.jgit</groupId>
-      <artifactId>org.eclipse.jgit.http.server</artifactId>
+      <groupId>org.exist-db.jgit</groupId>
+      <artifactId>existdb.jgit.http.server</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>org.eclipse.jgit</groupId>
-      <artifactId>org.eclipse.jgit.junit</artifactId>
+      <groupId>org.exist-db.jgit</groupId>
+      <artifactId>existdb.jgit.junit</artifactId>
       <version>${project.version}</version>
     </dependency>
 

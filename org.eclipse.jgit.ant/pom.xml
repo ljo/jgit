@@ -46,13 +46,13 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>org.eclipse.jgit</groupId>
-		<artifactId>org.eclipse.jgit-parent</artifactId>
-		<version>2.4.0-SNAPSHOT</version>
+		<groupId>org.exist-db.jgit</groupId>
+		<artifactId>existdb.jgit-parent</artifactId>
+		<version>2.4.0.M02</version>
 	</parent>
 
-	<artifactId>org.eclipse.jgit.ant</artifactId>
-	<name>JGit - Ant Tasks</name>
+	<artifactId>existdb.jgit.ant</artifactId>
+	<name>eXistDB :: JGit :: Ant Tasks</name>
 
 	<description>
     Ant based user interface for Git
@@ -65,7 +65,7 @@
 	<dependencies>
 		<dependency>
 			<groupId>org.eclipse.jgit</groupId>
-			<artifactId>org.eclipse.jgit</artifactId>
+			<artifactId>org.exist-db.jgit</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 

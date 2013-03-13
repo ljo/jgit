@@ -50,13 +50,13 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.eclipse.jgit</groupId>
-    <artifactId>org.eclipse.jgit-parent</artifactId>
-    <version>2.4.0-SNAPSHOT</version>
+    <groupId>org.exist-db.jgit</groupId>
+    <artifactId>existdb.jgit-parent</artifactId>
+    <version>2.4.0.M02</version>
   </parent>
 
-  <artifactId>org.eclipse.jgit.test</artifactId>
-  <name>JGit - Core Tests</name>
+  <artifactId>existdb.jgit.test</artifactId>
+  <name>eXistDB :: JGit :: Core Tests</name>
 
   <description>
     JUnit tests for the core library.
@@ -77,32 +77,32 @@
     </dependency>
 
     <dependency>
-      <groupId>org.eclipse.jgit</groupId>
-      <artifactId>org.eclipse.jgit</artifactId>
+      <groupId>org.exist-db.jgit</groupId>
+      <artifactId>existdb.jgit</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>org.eclipse.jgit</groupId>
-      <artifactId>org.eclipse.jgit.junit</artifactId>
+      <groupId>org.exist-db.jgit</groupId>
+      <artifactId>existdb.jgit.junit</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>org.eclipse.jgit</groupId>
-      <artifactId>org.eclipse.jgit.ui</artifactId>
+      <groupId>org.exist-db.jgit</groupId>
+      <artifactId>existdb.jgit.ui</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>org.eclipse.jgit</groupId>
-      <artifactId>org.eclipse.jgit.console</artifactId>
+      <groupId>org.exist-db.jgit</groupId>
+      <artifactId>existdb.jgit.console</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>org.eclipse.jgit</groupId>
-      <artifactId>org.eclipse.jgit.pgm</artifactId>
+      <groupId>org.exist-db.jgit</groupId>
+      <artifactId>existdb.jgit.pgm</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>
