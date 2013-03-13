@@ -73,6 +73,7 @@ import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.transport.RemoteConfig;
 import org.eclipse.jgit.transport.TagOpt;
 import org.eclipse.jgit.transport.URIish;
+import org.eclipse.jgit.util.FS;
 
 /**
  * Clone a repository into a new working directory
@@ -101,6 +102,8 @@ public class CloneCommand extends TransportCommand<CloneCommand, Git> {
 	private boolean noCheckout;
 
 	private Collection<String> branchesToClone;
+
+	private FS fs = null;
 
 	/**
 	 * Create clone command with no repository set
@@ -139,11 +142,12 @@ public class CloneCommand extends TransportCommand<CloneCommand, Git> {
 		InitCommand command = Git.init();
 		command.setBare(bare);
 		if (directory == null)
-			directory = new File(u.getHumanishName(), Constants.DOT_GIT);
+			directory = fs.resolve(u.getHumanishName(), Constants.DOT_GIT);
 		if (directory.exists() && directory.listFiles().length != 0)
 			throw new JGitInternalException(MessageFormat.format(
 					JGitText.get().cloneNonEmptyDirectory, directory.getName()));
 		command.setDirectory(directory);
+		command.setFS(fs);
 		return command.call().getRepository();
 	}
 
@@ -428,6 +432,15 @@ public class CloneCommand extends TransportCommand<CloneCommand, Git> {
 	 */
 	public CloneCommand setNoCheckout(boolean noCheckout) {
 		this.noCheckout = noCheckout;
+		return this;
+	}
+
+	/**
+	 * @param fs
+	 * @return {@code this}
+	 */
+	public CloneCommand setFS(FS fs) {
+		this.fs = fs;
 		return this;
 	}
 }

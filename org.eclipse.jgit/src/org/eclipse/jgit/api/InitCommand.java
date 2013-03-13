@@ -64,6 +64,8 @@ public class InitCommand implements Callable<Git> {
 
 	private boolean bare;
 
+	private FS fs = null;
+
 	/**
 	 * Executes the {@code Init} command.
 	 *
@@ -73,10 +75,13 @@ public class InitCommand implements Callable<Git> {
 		try {
 			BaseRepositoryBuilder<? extends BaseRepositoryBuilder, ? extends Repository> builder = Git
 					.getRepositoryBuilder();
+
 			if (bare)
 				builder.setBare();
 
-			if (builder.getFS() == null) {
+			if (fs != null) {
+				builder.setFS(fs);
+			} else if (builder.getFS() == null) {
 				builder.setFS(FS.DETECTED);
 			}
 
@@ -126,4 +131,12 @@ public class InitCommand implements Callable<Git> {
 		return this;
 	}
 
+	/**
+	 * @param fs
+	 * @return this instance
+	 */
+	public InitCommand setFS(FS fs) {
+		this.fs = fs;
+		return this;
+	}
 }
