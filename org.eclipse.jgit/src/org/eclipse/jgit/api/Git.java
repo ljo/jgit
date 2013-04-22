@@ -46,7 +46,6 @@ package org.eclipse.jgit.api;
 import java.io.File;
 import java.io.IOException;
 
-import org.eclipse.jgit.lib.BaseRepositoryBuilder;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.RepositoryBuilder;
 import org.eclipse.jgit.lib.RepositoryCache;
@@ -639,23 +638,4 @@ public class Git {
 	public Repository getRepository() {
 		return repo;
 	}
-
-	static BaseRepositoryBuilder<? extends BaseRepositoryBuilder, ? extends Repository> builder = new RepositoryBuilder();
-
-	/**
-	 * @param builder
-	 *            Repository builder
-	 */
-	public static void setRepositoryBuilder(
-			BaseRepositoryBuilder<? extends BaseRepositoryBuilder, ? extends Repository> builder) {
-		Git.builder = builder;
-	}
-
-	/**
-	 * @return Repository builder
-	 */
-	public static BaseRepositoryBuilder<? extends BaseRepositoryBuilder, ? extends Repository> getRepositoryBuilder() {
-		return builder;
-	}
-
 }

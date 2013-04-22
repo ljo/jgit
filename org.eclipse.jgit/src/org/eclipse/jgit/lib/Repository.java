@@ -1119,7 +1119,7 @@ public abstract class Repository {
 			return RepositoryState.CHERRY_PICKING;
 		}
 
-		if (new File(getDirectory(), Constants.REVERT_HEAD).exists()) {
+		if (fs.resolve(getDirectory(), Constants.REVERT_HEAD).exists()) {
 			try {
 				if (!readDirCache().hasUnmergedPaths()) {
 					// no unmerged paths
