@@ -70,9 +70,10 @@ public class PackReverseIndexTest extends RepositoryTestCase {
 	public void setUp() throws Exception {
 		super.setUp();
 		// index with both small (< 2^31) and big offsets
-		idx = PackIndex.open(FS.DETECTED,
-				JGitTestUtil.getTestResourceFile(
-				"pack-huge.idx"));
+		idx = PackIndex.open(
+                FS.DETECTED,
+                JGitTestUtil.getTestResourceFile(
+				    "pack-huge.idx"));
 		reverseIdx = new PackReverseIndex(idx);
 	}
 
