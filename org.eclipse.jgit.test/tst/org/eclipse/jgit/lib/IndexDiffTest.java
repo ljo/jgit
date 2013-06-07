@@ -80,7 +80,7 @@ public class IndexDiffTest extends RepositoryTestCase {
 		ObjectInserter inserter = db.newObjectInserter();
 		final File f = new File(workdir, path);
 		final ObjectId id = inserter.insert(Constants.OBJ_BLOB,
-				IO.readFully(FS.DETECTED, f));
+				IO.readFully(db.getFS(), f));
 		return new PathEdit(path) {
 			public void apply(DirCacheEntry ent) {
 				ent.setFileMode(FileMode.REGULAR_FILE);
