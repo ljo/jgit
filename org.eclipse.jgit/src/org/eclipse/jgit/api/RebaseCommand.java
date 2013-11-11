@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, Mathias Kinzler <mathias.kinzler@sap.com>
+ * Copyright (C) 2010, 2013 Mathias Kinzler <mathias.kinzler@sap.com>
  * and other copyright owners as documented in the project's IP log.
  *
  * This program and the accompanying materials are made available
@@ -108,9 +108,14 @@ import org.eclipse.jgit.util.RawParseUtils;
  */
 public class RebaseCommand extends GitCommand<RebaseResult> {
 	/**
-	 * The name of the "rebase-merge" folder
+	 * The name of the "rebase-merge" folder for interactive rebases.
 	 */
 	public static final String REBASE_MERGE = "rebase-merge"; //$NON-NLS-1$
+
+	/**
+	 * The name of the "rebase-apply" folder for non-interactive rebases.
+	 */
+	private static final String REBASE_APPLY = "rebase-apply"; //$NON-NLS-1$
 
 	/**
 	 * The name of the "stopped-sha" file
@@ -177,7 +182,7 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 
 	private final RevWalk walk;
 
-	private final File rebaseDir;
+	private final RebaseState rebaseState;
 
 	private InteractiveHandler interactiveHandler;
 
@@ -187,7 +192,7 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 	protected RebaseCommand(Repository repo) {
 		super(repo);
 		walk = new RevWalk(repo);
-		rebaseDir = repo.getFS().resolve(repo.getDirectory(), REBASE_MERGE);
+		rebaseState = new RebaseState(repo.getFS(), repo.getDirectory());
 	}
 
 	/**
@@ -219,9 +224,9 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 			case SKIP:
 				// fall through
 			case CONTINUE:
-				String upstreamCommitId = readFile(rebaseDir, ONTO);
+				String upstreamCommitId = rebaseState.readFile(ONTO);
 				try {
-					upstreamCommitName = readFile(rebaseDir, ONTO_NAME);
+					upstreamCommitName = rebaseState.readFile(ONTO_NAME);
 				} catch (FileNotFoundException e) {
 					// Fall back to commit ID if file doesn't exist (e.g. rebase
 					// was started by C Git)
@@ -242,7 +247,7 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 			if (operation == Operation.CONTINUE) {
 				newHead = continueRebase();
 
-				File amendFile = repo.getFS().resolve(rebaseDir, AMEND);
+				File amendFile = rebaseState.getFile(AMEND);
 				boolean amendExists = amendFile.exists();
 				if (amendExists) {
 					FileUtils.delete(amendFile);
@@ -265,10 +270,9 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 			List<Step> steps = loadSteps();
 			if (isInteractive()) {
 				interactiveHandler.prepareSteps(steps);
-				final FS fs = repo.getFS();
-				BufferedWriter fw = new BufferedWriter(
-						new OutputStreamWriter(fs.fileOutputStream(fs.resolve(
-								rebaseDir, GIT_REBASE_TODO)),
+				BufferedWriter fw = new BufferedWriter(new OutputStreamWriter(
+						repo.getFS().fileOutputStream(
+								rebaseState.getFile(GIT_REBASE_TODO)),
 								Constants.CHARACTER_ENCODING));
 				fw.newLine();
 				try {
@@ -315,7 +319,8 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 						String ourCommitName = getOurCommitName();
 						CherryPickResult cherryPickResult = new Git(repo)
 								.cherryPick().include(commitToPick)
-								.setOurCommitName(ourCommitName).call();
+								.setOurCommitName(ourCommitName)
+								.setReflogPrefix("rebase:").call(); //$NON-NLS-1$
 						switch (cherryPickResult.getStatus()) {
 						case FAILED:
 							if (operation == Operation.BEGIN)
@@ -340,7 +345,7 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 								.setAmend(true).call();
 						continue;
 					case EDIT:
-						createFile(rebaseDir, AMEND, commitToPick.name());
+						rebaseState.createFile(AMEND, commitToPick.name());
 						return stop(commitToPick);
 					}
 				} finally {
@@ -348,9 +353,9 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 				}
 			}
 			if (newHead != null) {
-				String headName = readFile(rebaseDir, HEAD_NAME);
-				updateHead(headName, newHead);
-				FileUtils.delete(rebaseDir, FileUtils.RECURSIVE);
+				String headName = rebaseState.readFile(HEAD_NAME);
+				updateHead(headName, newHead, upstreamCommit);
+				FileUtils.delete(rebaseState.getDir(), FileUtils.RECURSIVE);
 				if (lastStepWasForward)
 					return RebaseResult.FAST_FORWARD_RESULT;
 				return RebaseResult.OK_RESULT;
@@ -366,18 +371,20 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 	private String getOurCommitName() {
 		// If onto is different from upstream, this should say "onto", but
 		// RebaseCommand doesn't support a different "onto" at the moment.
-		String ourCommitName = "Upstream, based on "
+		String ourCommitName = "Upstream, based on " //$NON-NLS-1$
 				+ Repository.shortenRefName(upstreamCommitName);
 		return ourCommitName;
 	}
 
-	private void updateHead(String headName, RevCommit newHead)
+	private void updateHead(String headName, RevCommit newHead, RevCommit onto)
 			throws IOException {
 		// point the previous head (if any) to the new commit
 
 		if (headName.startsWith(Constants.R_REFS)) {
 			RefUpdate rup = repo.updateRef(headName);
 			rup.setNewObjectId(newHead);
+			rup.setRefLogMessage("rebase finished: " + headName + " onto " //$NON-NLS-1$ //$NON-NLS-2$
+					+ onto.getName(), false);
 			Result res = rup.forceUpdate();
 			switch (res) {
 			case FAST_FORWARD:
@@ -388,6 +395,8 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 				throw new JGitInternalException("Updating HEAD failed");
 			}
 			rup = repo.updateRef(Constants.HEAD);
+			rup.setRefLogMessage("rebase finished: returning to " + headName, //$NON-NLS-1$
+					false);
 			res = rup.link(headName);
 			switch (res) {
 			case FAST_FORWARD:
@@ -460,7 +469,7 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 
 		if (needsCommit) {
 			CommitCommand commit = new Git(repo).commit();
-			commit.setMessage(readFile(rebaseDir, MESSAGE));
+			commit.setMessage(rebaseState.readFile(MESSAGE));
 			commit.setAuthor(parseAuthor());
 			return commit.call();
 		}
@@ -468,7 +477,7 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 	}
 
 	private PersonIdent parseAuthor() throws IOException {
-		File authorScriptFile = repo.getFS().resolve(rebaseDir, AUTHOR_SCRIPT);
+		File authorScriptFile = rebaseState.getFile(AUTHOR_SCRIPT);
 		byte[] raw;
 		try {
 			raw = IO.readFully(repo.getFS(), authorScriptFile);
@@ -481,15 +490,17 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 	private RebaseResult stop(RevCommit commitToPick) throws IOException {
 		PersonIdent author = commitToPick.getAuthorIdent();
 		String authorScript = toAuthorScript(author);
-		createFile(rebaseDir, AUTHOR_SCRIPT, authorScript);
-		createFile(rebaseDir, MESSAGE, commitToPick.getFullMessage());
+		rebaseState.createFile(AUTHOR_SCRIPT, authorScript);
+		rebaseState.createFile(MESSAGE, commitToPick.getFullMessage());
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 		DiffFormatter df = new DiffFormatter(bos);
 		df.setRepository(repo);
 		df.format(commitToPick.getParent(0), commitToPick);
-		createFile(rebaseDir, PATCH, new String(bos.toByteArray(),
+		rebaseState.createFile(PATCH, new String(bos.toByteArray(),
 				Constants.CHARACTER_ENCODING));
-		createFile(rebaseDir, STOPPED_SHA, repo.newObjectReader().abbreviate(
+		rebaseState.createFile(STOPPED_SHA,
+				repo.newObjectReader()
+				.abbreviate(
 				commitToPick).name());
 		// Remove cherry pick state file created by CherryPickCommand, it's not
 		// needed for rebase
@@ -533,10 +544,10 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 			return;
 		List<String> todoLines = new ArrayList<String>();
 		List<String> poppedLines = new ArrayList<String>();
-		File todoFile = getFS().resolve(rebaseDir, GIT_REBASE_TODO);
-		File doneFile = getFS().resolve(rebaseDir, DONE);
-		BufferedReader br = new BufferedReader(new InputStreamReader(getFS()
-				.fileInputStream(todoFile), Constants.CHARACTER_ENCODING));
+		File todoFile = rebaseState.getFile(GIT_REBASE_TODO);
+		File doneFile = rebaseState.getFile(DONE);
+		BufferedReader br = new BufferedReader(new InputStreamReader(
+				getFS().fileInputStream(todoFile), Constants.CHARACTER_ENCODING));
 		try {
 			// check if the line starts with a action tag (pick, skip...)
 			while (poppedLines.size() < numSteps) {
@@ -610,7 +621,7 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 		if (head.isSymbolic())
 			headName = head.getTarget().getName();
 		else
-			headName = "detached HEAD";
+			headName = head.getObjectId().getName();
 		ObjectId headId = head.getObjectId();
 		if (headId == null)
 			throw new RefNotFoundException(MessageFormat.format(
@@ -625,10 +636,10 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 			monitor.beginTask(MessageFormat.format(
 					JGitText.get().resettingHead,
 					upstreamCommit.getShortMessage()), ProgressMonitor.UNKNOWN);
-			checkoutCommit(upstreamCommit);
+			checkoutCommit(headName, upstreamCommit);
 			monitor.endTask();
 
-			updateHead(headName, upstreamCommit);
+			updateHead(headName, upstreamCommit, upstream);
 			return RebaseResult.FAST_FORWARD_RESULT;
 		}
 
@@ -643,31 +654,25 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 		List<RevCommit> cherryPickList = new ArrayList<RevCommit>();
 		for (RevCommit commit : commitsToUse) {
 			if (commit.getParentCount() != 1)
-				throw new JGitInternalException(
-						MessageFormat.format(
-								JGitText.get().canOnlyCherryPickCommitsWithOneParent,
-								commit.name(),
-								Integer.valueOf(commit.getParentCount())));
+				continue;
 			cherryPickList.add(commit);
 		}
 
 		Collections.reverse(cherryPickList);
 		// create the folder for the meta information
-		FileUtils.mkdir(rebaseDir);
+		FileUtils.mkdir(rebaseState.getDir());
 
 		repo.writeOrigHead(headId);
-		createFile(rebaseDir, REBASE_HEAD, headId.name());
-		createFile(rebaseDir, HEAD_NAME, headName);
-		createFile(rebaseDir, ONTO, upstreamCommit.name());
-		createFile(rebaseDir, ONTO_NAME, upstreamCommitName);
-		createFile(rebaseDir, INTERACTIVE, ""); //$NON-NLS-1$
-
-		final FS fs = repo.getFS();
+		rebaseState.createFile(REBASE_HEAD, headId.name());
+		rebaseState.createFile(HEAD_NAME, headName);
+		rebaseState.createFile(ONTO, upstreamCommit.name());
+		rebaseState.createFile(ONTO_NAME, upstreamCommitName);
+		rebaseState.createFile(INTERACTIVE, ""); //$NON-NLS-1$
 		BufferedWriter fw = new BufferedWriter(new OutputStreamWriter(
-				fs.fileOutputStream(fs.resolve(rebaseDir, GIT_REBASE_TODO)),
+				repo.getFS().fileOutputStream(rebaseState.getFile(GIT_REBASE_TODO)),
 				Constants.CHARACTER_ENCODING));
-		fw.write("# Created by EGit: rebasing " + upstreamCommit.name()
-				+ " onto " + headId.name());
+		fw.write("# Created by EGit: rebasing " + headId.name() + " onto "
+				+ upstreamCommit.name());
 		fw.newLine();
 		try {
 			StringBuilder sb = new StringBuilder();
@@ -693,10 +698,10 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 				upstreamCommit.getShortMessage()), ProgressMonitor.UNKNOWN);
 		boolean checkoutOk = false;
 		try {
-			checkoutOk = checkoutCommit(upstreamCommit);
+			checkoutOk = checkoutCommit(headName, upstreamCommit);
 		} finally {
 			if (!checkoutOk)
-				FileUtils.delete(rebaseDir, FileUtils.RECURSIVE);
+				FileUtils.delete(rebaseState.getDir(), FileUtils.RECURSIVE);
 		}
 		monitor.endTask();
 
@@ -734,7 +739,7 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 		if (head.isSymbolic())
 			headName = head.getTarget().getName();
 		else
-			headName = "detached HEAD";
+			headName = head.getObjectId().getName();
 		return tryFastForward(headName, headCommit, newCommit);
 	}
 
@@ -808,18 +813,6 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 			}
 	}
 
-	private void createFile(File parentDir, String name, String content)
-			throws IOException {
-		File file = repo.getFS().resolve(parentDir, name);
-		FileOutputStream fos = repo.getFS().fileOutputStream(file);
-		try {
-			fos.write(content.getBytes(Constants.CHARACTER_ENCODING));
-			fos.write('\n');
-		} finally {
-			fos.close();
-		}
-	}
-
 	private RebaseResult abort(RebaseResult result) throws IOException {
 		try {
 			ObjectId origHead = repo.readOrigHead();
@@ -849,7 +842,7 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 			monitor.endTask();
 		}
 		try {
-			String headName = readFile(rebaseDir, HEAD_NAME);
+			String headName = rebaseState.readFile(HEAD_NAME);
 			if (headName.startsWith(Constants.R_REFS)) {
 				monitor.beginTask(MessageFormat.format(
 						JGitText.get().resettingHead, headName),
@@ -857,6 +850,7 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 
 				// update the HEAD
 				RefUpdate refUpdate = repo.updateRef(Constants.HEAD, false);
+				refUpdate.setRefLogMessage("rebase: aborting", false); //$NON-NLS-1$
 				Result res = refUpdate.link(headName);
 				switch (res) {
 				case FAST_FORWARD:
@@ -869,7 +863,7 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 				}
 			}
 			// cleanup the files
-			FileUtils.delete(rebaseDir, FileUtils.RECURSIVE);
+			FileUtils.delete(rebaseState.getDir(), FileUtils.RECURSIVE);
 			repo.writeCherryPickHead(null);
 			return result;
 
@@ -878,17 +872,8 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 		}
 	}
 
-	private String readFile(File directory, String fileName) throws IOException {
-		byte[] content = IO.readFully(repo.getFS(),
-				repo.getFS().resolve(directory, fileName));
-		// strip off the last LF
-		int end = content.length;
-		while (0 < end && content[end - 1] == '\n')
-			end--;
-		return RawParseUtils.decode(content, 0, end);
-	}
-
-	private boolean checkoutCommit(RevCommit commit) throws IOException,
+	private boolean checkoutCommit(String headName, RevCommit commit)
+			throws IOException,
 			CheckoutConflictException {
 		try {
 			RevCommit head = walk.parseCommit(repo.resolve(Constants.HEAD));
@@ -904,6 +889,10 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 			RefUpdate refUpdate = repo.updateRef(Constants.HEAD, true);
 			refUpdate.setExpectedOldObjectId(head);
 			refUpdate.setNewObjectId(commit);
+			refUpdate.setRefLogMessage(
+					"checkout: moving from " //$NON-NLS-1$
+							+ Repository.shortenRefName(headName)
+							+ " to " + commit.getName(), false); //$NON-NLS-1$
 			Result res = refUpdate.forceUpdate();
 			switch (res) {
 			case FAST_FORWARD:
@@ -922,7 +911,7 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 
 	List<Step> loadSteps() throws IOException {
 		byte[] buf = IO.readFully(repo.getFS(),
-				repo.getFS().resolve(rebaseDir, GIT_REBASE_TODO));
+				rebaseState.getFile(GIT_REBASE_TODO));
 		int ptr = 0;
 		int tokenBegin = 0;
 		ArrayList<Step> r = new ArrayList<Step>();
@@ -1235,5 +1224,63 @@ public class RebaseCommand extends GitCommand<RebaseResult> {
 		if (name != null && email != null)
 			return new PersonIdent(name, email, when, tz);
 		return null;
+	}
+
+	private static class RebaseState {
+
+		private final FS fs;
+		private final File repoDirectory;
+		private File dir;
+
+		public RebaseState(FS fs, File repoDirectory) {
+			this.repoDirectory = repoDirectory;
+			this.fs = fs;
+		}
+
+		public File getDir() {
+			if (dir == null) {
+				File rebaseApply = fs.resolve(repoDirectory, REBASE_APPLY);
+				if (rebaseApply.exists()) {
+					dir = rebaseApply;
+				} else {
+					File rebaseMerge = fs.resolve(repoDirectory, REBASE_MERGE);
+					dir = rebaseMerge;
+				}
+			}
+			return dir;
+		}
+
+		public String readFile(String name) throws IOException {
+			return readFile(fs, getDir(), name);
+		}
+
+		public void createFile(String name, String content) throws IOException {
+			createFile(fs, getDir(), name, content);
+		}
+
+		public File getFile(String name) {
+			return fs.resolve(getDir(), name);
+		}
+
+		private static String readFile(FS fs, File directory, String fileName)
+				throws IOException {
+			byte[] content = IO.readFully(fs, fs.resolve(directory, fileName));
+			// strip off the last LF
+			int end = RawParseUtils.prevLF(content, content.length);
+			return RawParseUtils.decode(content, 0, end + 1);
+		}
+
+		private static void createFile(FS fs, File parentDir, String name,
+				String content)
+				throws IOException {
+			File file = fs.resolve(parentDir, name);
+			FileOutputStream fos = fs.fileOutputStream(file);
+			try {
+				fos.write(content.getBytes(Constants.CHARACTER_ENCODING));
+				fos.write('\n');
+			} finally {
+				fos.close();
+			}
+		}
 	}
 }

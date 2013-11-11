@@ -64,9 +64,9 @@ import java.util.List;
 import org.eclipse.jgit.errors.ConfigInvalidException;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
 import org.eclipse.jgit.internal.JGitText;
+import org.eclipse.jgit.internal.storage.file.FileRepository;
 import org.eclipse.jgit.lib.RepositoryCache.FileKey;
 import org.eclipse.jgit.storage.file.FileBasedConfig;
-import org.eclipse.jgit.storage.file.FileRepository;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.eclipse.jgit.util.FS;
 import org.eclipse.jgit.util.IO;
@@ -375,40 +375,40 @@ public class BaseRepositoryBuilder<B extends BaseRepositoryBuilder, R extends Re
 		if (getGitDir() == null) {
 			String val = sr.getenv(GIT_DIR_KEY);
 			if (val != null)
-				setGitDir(new File(val));
+				setGitDir(fs.resolve(val));
 		}
 
 		if (getObjectDirectory() == null) {
 			String val = sr.getenv(GIT_OBJECT_DIRECTORY_KEY);
 			if (val != null)
-				setObjectDirectory(new File(val));
+				setObjectDirectory(fs.resolve(val));
 		}
 
 		if (getAlternateObjectDirectories() == null) {
 			String val = sr.getenv(GIT_ALTERNATE_OBJECT_DIRECTORIES_KEY);
 			if (val != null) {
 				for (String path : val.split(File.pathSeparator))
-					addAlternateObjectDirectory(new File(path));
+					addAlternateObjectDirectory(fs.resolve(path));
 			}
 		}
 
 		if (getWorkTree() == null) {
 			String val = sr.getenv(GIT_WORK_TREE_KEY);
 			if (val != null)
-				setWorkTree(new File(val));
+				setWorkTree(fs.resolve(val));
 		}
 
 		if (getIndexFile() == null) {
 			String val = sr.getenv(GIT_INDEX_FILE_KEY);
 			if (val != null)
-				setIndexFile(new File(val));
+				setIndexFile(fs.resolve(val));
 		}
 
 		if (ceilingDirectories == null) {
 			String val = sr.getenv(GIT_CEILING_DIRECTORIES_KEY);
 			if (val != null) {
 				for (String path : val.split(File.pathSeparator))
-					addCeilingDirectory(new File(path));
+					addCeilingDirectory(fs.resolve(path));
 			}
 		}
 
@@ -487,7 +487,7 @@ public class BaseRepositoryBuilder<B extends BaseRepositoryBuilder, R extends Re
 	 */
 	public B findGitDir() {
 		if (getGitDir() == null)
-			findGitDir(new File("").getAbsoluteFile()); //$NON-NLS-1$
+			findGitDir(fs.resolve("").getAbsoluteFile()); //$NON-NLS-1$
 		return self();
 	}
 

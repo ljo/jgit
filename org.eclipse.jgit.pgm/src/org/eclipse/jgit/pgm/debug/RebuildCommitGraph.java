@@ -58,6 +58,7 @@ import java.util.Map;
 
 import org.eclipse.jgit.errors.MissingObjectException;
 import org.eclipse.jgit.errors.ObjectWritingException;
+import org.eclipse.jgit.internal.storage.file.LockFile;
 import org.eclipse.jgit.lib.CommitBuilder;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
@@ -69,10 +70,10 @@ import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.RefWriter;
 import org.eclipse.jgit.lib.TextProgressMonitor;
-import org.eclipse.jgit.pgm.CLIText;
+import org.eclipse.jgit.pgm.Command;
 import org.eclipse.jgit.pgm.TextBuiltin;
+import org.eclipse.jgit.pgm.internal.CLIText;
 import org.eclipse.jgit.revwalk.RevWalk;
-import org.eclipse.jgit.storage.file.LockFile;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.Option;
 
@@ -94,6 +95,7 @@ import org.kohsuke.args4j.Option;
  * deleted from the current repository.
  * <p>
  */
+@Command(usage = "usage_RebuildCommitGraph")
 class RebuildCommitGraph extends TextBuiltin {
 	private static final String REALLY = "--destroy-this-repository"; //$NON-NLS-1$
 

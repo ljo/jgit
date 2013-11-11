@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, François Rey <eclipse.org_@_francois_._rey_._name>
+ * Copyright (C) 2011, 2013 François Rey <eclipse.org_@_francois_._rey_._name>
  * and other copyright owners as documented in the project's IP log.
  *
  * This program and the accompanying materials are made available
@@ -47,12 +47,18 @@ import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.StatusCommand;
 import org.eclipse.jgit.lib.Constants;
+import org.eclipse.jgit.lib.IndexDiff.StageState;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.pgm.internal.CLIText;
+import org.kohsuke.args4j.Option;
 
 @Command(usage = "usage_Status", common = true)
 class Status extends TextBuiltin {
@@ -62,6 +68,11 @@ class Status extends TextBuiltin {
 	protected final String statusFileListFormat = CLIText.get().statusFileListFormat;
 
 	protected final String statusFileListFormatWithPrefix = CLIText.get().statusFileListFormatWithPrefix;
+
+	protected final String statusFileListFormatUnmerged = CLIText.get().statusFileListFormatUnmerged;
+
+	@Option(name = "--", metaVar = "metaVar_path", multiValued = true)
+	protected List<String> filterPaths;
 
 	@Override
 	protected void run() throws Exception {
@@ -75,14 +86,19 @@ class Status extends TextBuiltin {
 		} else
 			outw.println(CLIText.formatLine(CLIText.get().notOnAnyBranch));
 		// List changes
-		org.eclipse.jgit.api.Status status = new Git(db).status().call();
+		StatusCommand statusCommand = new Git(db).status();
+		if (filterPaths != null && filterPaths.size() > 0)
+			for (String path : filterPaths)
+				statusCommand.addPath(path);
+		org.eclipse.jgit.api.Status status = statusCommand.call();
 		Collection<String> added = status.getAdded();
 		Collection<String> changed = status.getChanged();
 		Collection<String> removed = status.getRemoved();
 		Collection<String> modified = status.getModified();
 		Collection<String> missing = status.getMissing();
 		Collection<String> untracked = status.getUntracked();
-		Collection<String> unmerged = status.getConflicting();
+		Map<String, StageState> unmergedStates = status
+				.getConflictingStageState();
 		Collection<String> toBeCommitted = new ArrayList<String>(added);
 		toBeCommitted.addAll(changed);
 		toBeCommitted.addAll(removed);
@@ -106,12 +122,12 @@ class Status extends TextBuiltin {
 					modified, missing, null);
 			firstHeader = false;
 		}
-		int nbUnmerged = unmerged.size();
+		int nbUnmerged = unmergedStates.size();
 		if (nbUnmerged > 0) {
 			if (!firstHeader)
 				printSectionHeader(""); //$NON-NLS-1$
 			printSectionHeader(CLIText.get().unmergedPaths);
-			printList(unmerged);
+			printUnmerged(unmergedStates);
 			firstHeader = false;
 		}
 		int nbUntracked = untracked.size();
@@ -167,5 +183,41 @@ class Status extends TextBuiltin {
 			outw.flush();
 		}
 		return list.size();
+	}
+
+	private void printUnmerged(Map<String, StageState> unmergedStates)
+			throws IOException {
+		List<String> paths = new ArrayList<String>(unmergedStates.keySet());
+		Collections.sort(paths);
+		for (String path : paths) {
+			StageState state = unmergedStates.get(path);
+			String stateDescription = getStageStateDescription(state);
+			outw.println(CLIText.formatLine(String.format(
+					statusFileListFormatUnmerged, stateDescription, path)));
+			outw.flush();
+		}
+	}
+
+	private static String getStageStateDescription(StageState stageState) {
+		CLIText text = CLIText.get();
+		switch (stageState) {
+		case BOTH_DELETED:
+			return text.statusBothDeleted;
+		case ADDED_BY_US:
+			return text.statusAddedByUs;
+		case DELETED_BY_THEM:
+			return text.statusDeletedByThem;
+		case ADDED_BY_THEM:
+			return text.statusAddedByThem;
+		case DELETED_BY_US:
+			return text.statusDeletedByUs;
+		case BOTH_ADDED:
+			return text.statusBothAdded;
+		case BOTH_MODIFIED:
+			return text.statusBothModified;
+		default:
+			throw new IllegalArgumentException("Unknown StageState: " //$NON-NLS-1$
+					+ stageState);
+		}
 	}
 }

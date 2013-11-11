@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, Mathias Kinzler <mathias.kinzler@sap.com>
+ * Copyright (C) 2010, 2013 Mathias Kinzler <mathias.kinzler@sap.com>
  * and other copyright owners as documented in the project's IP log.
  *
  * This program and the accompanying materials are made available
@@ -42,6 +42,9 @@
  */
 package org.eclipse.jgit.api;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -61,7 +64,6 @@ import org.eclipse.jgit.api.RebaseCommand.InteractiveHandler;
 import org.eclipse.jgit.api.RebaseCommand.Operation;
 import org.eclipse.jgit.api.RebaseCommand.Step;
 import org.eclipse.jgit.api.RebaseResult.Status;
-import org.eclipse.jgit.api.errors.JGitInternalException;
 import org.eclipse.jgit.api.errors.RefNotFoundException;
 import org.eclipse.jgit.api.errors.UnmergedPathsException;
 import org.eclipse.jgit.api.errors.WrongRepositoryStateException;
@@ -71,11 +73,13 @@ import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.RefUpdate;
+import org.eclipse.jgit.lib.ReflogEntry;
 import org.eclipse.jgit.lib.RepositoryState;
 import org.eclipse.jgit.merge.MergeStrategy;
 import org.eclipse.jgit.merge.ResolveMerger.MergeFailureReason;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.util.FileUtils;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -103,6 +107,8 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		// update the HEAD
 		RefUpdate refUpdate = db.updateRef(Constants.HEAD, true);
 		refUpdate.setNewObjectId(commit);
+		refUpdate.setRefLogMessage("checkout: moving to " + head.getName(),
+				false);
 		refUpdate.forceUpdate();
 	}
 
@@ -119,7 +125,7 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		// create file2 on master
 		File file2 = writeTrashFile("file2", "file2");
 		git.add().addFilepattern("file2").call();
-		git.commit().setMessage("Add file2").call();
+		RevCommit second = git.commit().setMessage("Add file2").call();
 		assertTrue(resolve(db.getWorkTree(), "file2").exists());
 
 		checkoutBranch("refs/heads/topic");
@@ -129,6 +135,22 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		assertTrue(resolve(db.getWorkTree(), "file2").exists());
 		checkFile(file2, "file2");
 		assertEquals(Status.FAST_FORWARD, res.getStatus());
+
+		List<ReflogEntry> headLog = db.getReflogReader(Constants.HEAD)
+				.getReverseEntries();
+		List<ReflogEntry> topicLog = db.getReflogReader("refs/heads/topic")
+				.getReverseEntries();
+		List<ReflogEntry> masterLog = db.getReflogReader("refs/heads/master")
+				.getReverseEntries();
+		assertEquals("rebase finished: returning to refs/heads/topic", headLog
+				.get(0).getComment());
+		assertEquals("checkout: moving from topic to " + second.getName(),
+				headLog.get(1).getComment());
+		assertEquals(2, masterLog.size());
+		assertEquals(2, topicLog.size());
+		assertEquals(
+				"rebase finished: refs/heads/topic onto " + second.getName(),
+				topicLog.get(0).getComment());
 	}
 
 	@Test
@@ -149,7 +171,8 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		// write a second commit
 		writeTrashFile("file2", "file2 new content");
 		git.add().addFilepattern("file2").call();
-		git.commit().setMessage("Change content of file2").call();
+		RevCommit second = git.commit().setMessage("Change content of file2")
+				.call();
 
 		checkoutBranch("refs/heads/topic");
 		assertFalse(resolve(db.getWorkTree(), "file2").exists());
@@ -158,74 +181,130 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		assertTrue(resolve(db.getWorkTree(), "file2").exists());
 		checkFile(file2, "file2 new content");
 		assertEquals(Status.FAST_FORWARD, res.getStatus());
+
+		List<ReflogEntry> headLog = db.getReflogReader(Constants.HEAD)
+				.getReverseEntries();
+		List<ReflogEntry> topicLog = db.getReflogReader("refs/heads/topic")
+				.getReverseEntries();
+		List<ReflogEntry> masterLog = db.getReflogReader("refs/heads/master")
+				.getReverseEntries();
+		assertEquals("rebase finished: returning to refs/heads/topic", headLog
+				.get(0).getComment());
+		assertEquals("checkout: moving from topic to " + second.getName(),
+				headLog.get(1).getComment());
+		assertEquals(3, masterLog.size());
+		assertEquals(2, topicLog.size());
+		assertEquals(
+				"rebase finished: refs/heads/topic onto " + second.getName(),
+				topicLog.get(0).getComment());
 	}
 
+	/**
+	 * Create the following commits and then attempt to rebase topic onto
+	 * master. This will serialize the branches.
+	 *
+	 * <pre>
+	 * A - B (master)
+	 *   \
+	 *    C - D - F (topic)
+	 *     \      /
+	 *      E  -  (side)
+	 * </pre>
+	 *
+	 * into
+	 *
+	 * <pre>
+	 * A - B - (master)  C' - D' - E' (topic')
+	 *   \
+	 *    C - D - F (topic)
+	 *     \      /
+	 *      E  -  (side)
+	 * </pre>
+	 *
+	 * @throws Exception
+	 */
 	@Test
-	public void testRebaseFailsCantCherryPickMergeCommits()
+	public void testRebaseShouldIgnoreMergeCommits()
 			throws Exception {
-		/**
-		 * Create the following commits and then attempt to rebase topic onto
-		 * master. This will fail as the cherry-pick list C, D, E an F contains
-		 * a merge commit (F).
-		 *
-		 * <pre>
-		 * A - B (master)
-		 *   \
-		 *    C - D - F (topic)
-		 *     \      /
-		 *      E  -  (side)
-		 * </pre>
-		 */
 		// create file1 on master
 		writeTrashFile(FILE1, FILE1);
 		git.add().addFilepattern(FILE1).call();
-		RevCommit first = git.commit().setMessage("Add file1").call();
+		RevCommit a = git.commit().setMessage("Add file1").call();
 		assertTrue(resolve(db.getWorkTree(), FILE1).exists());
 
 		// create a topic branch
-		createBranch(first, "refs/heads/topic");
+		createBranch(a, "refs/heads/topic");
 
 		// update FILE1 on master
 		writeTrashFile(FILE1, "blah");
 		git.add().addFilepattern(FILE1).call();
-		git.commit().setMessage("updated file1 on master").call();
+		RevCommit b = git.commit().setMessage("updated file1 on master").call();
 
 		checkoutBranch("refs/heads/topic");
 		writeTrashFile("file3", "more changess");
 		git.add().addFilepattern("file3").call();
-		RevCommit topicCommit = git.commit()
+		RevCommit c = git.commit()
 				.setMessage("update file3 on topic").call();
 
 		// create a branch from the topic commit
-		createBranch(topicCommit, "refs/heads/side");
+		createBranch(c, "refs/heads/side");
 
 		// second commit on topic
 		writeTrashFile("file2", "file2");
 		git.add().addFilepattern("file2").call();
-		git.commit().setMessage("Add file2").call();
+		RevCommit d = git.commit().setMessage("Add file2").call();
 		assertTrue(resolve(db.getWorkTree(), "file2").exists());
 
 		// switch to side branch and update file2
 		checkoutBranch("refs/heads/side");
 		writeTrashFile("file3", "more change");
 		git.add().addFilepattern("file3").call();
-		RevCommit sideCommit = git.commit().setMessage("update file2 on side")
+		RevCommit e = git.commit().setMessage("update file2 on side")
 				.call();
 
-		// switch back to topic and merge in side
+		// switch back to topic and merge in side, creating f
 		checkoutBranch("refs/heads/topic");
-		MergeResult result = git.merge().include(sideCommit.getId())
+		MergeResult result = git.merge().include(e.getId())
 				.setStrategy(MergeStrategy.RESOLVE).call();
 		assertEquals(MergeStatus.MERGED, result.getMergeStatus());
+		RebaseResult res = git.rebase().setUpstream("refs/heads/master").call();
+		assertEquals(Status.OK, res.getStatus());
 
-		try {
-			RebaseResult rebase = git.rebase().setUpstream("refs/heads/master")
-					.call();
-			fail("MultipleParentsNotAllowedException expected: "
-					+ rebase.getStatus());
-		} catch (JGitInternalException e) {
-			// expected
-		}
+		RevWalk rw = new RevWalk(db);
+		rw.markStart(rw.parseCommit(db.resolve("refs/heads/topic")));
+		assertDerivedFrom(rw.next(), e);
+		assertDerivedFrom(rw.next(), d);
+		assertDerivedFrom(rw.next(), c);
+		assertEquals(b, rw.next());
+		assertEquals(a, rw.next());
+
+		List<ReflogEntry> headLog = db.getReflogReader(Constants.HEAD)
+				.getReverseEntries();
+		List<ReflogEntry> sideLog = db.getReflogReader("refs/heads/side")
+				.getReverseEntries();
+		List<ReflogEntry> topicLog = db.getReflogReader("refs/heads/topic")
+				.getReverseEntries();
+		List<ReflogEntry> masterLog = db.getReflogReader("refs/heads/master")
+				.getReverseEntries();
+		assertEquals("rebase finished: returning to refs/heads/topic", headLog
+				.get(0).getComment());
+		assertEquals("rebase: update file2 on side", headLog.get(1)
+				.getComment());
+		assertEquals("rebase: Add file2", headLog.get(2).getComment());
+		assertEquals("rebase: update file3 on topic", headLog.get(3)
+				.getComment());
+		assertEquals("checkout: moving from topic to " + b.getName(), headLog
+				.get(4).getComment());
+		assertEquals(2, masterLog.size());
+		assertEquals(2, sideLog.size());
+		assertEquals(5, topicLog.size());
+		assertEquals("rebase finished: refs/heads/topic onto " + b.getName(),
+				topicLog.get(0).getComment());
+	}
+
+	static void assertDerivedFrom(RevCommit derived, RevCommit original) {
+		assertThat(derived, not(equalTo(original)));
+		assertEquals(original.getFullMessage(), derived.getFullMessage());
 	}
 
 	@Test
@@ -240,6 +319,11 @@ public class RebaseCommandTest extends RepositoryTestCase {
 
 		RebaseResult result = git.rebase().setUpstream(parent).call();
 		assertEquals(Status.UP_TO_DATE, result.getStatus());
+
+		assertEquals(2, db.getReflogReader(Constants.HEAD).getReverseEntries()
+				.size());
+		assertEquals(2, db.getReflogReader("refs/heads/master")
+				.getReverseEntries().size());
 	}
 
 	@Test
@@ -253,6 +337,11 @@ public class RebaseCommandTest extends RepositoryTestCase {
 
 		RebaseResult res = git.rebase().setUpstream(first).call();
 		assertEquals(Status.UP_TO_DATE, res.getStatus());
+
+		assertEquals(1, db.getReflogReader(Constants.HEAD).getReverseEntries()
+				.size());
+		assertEquals(1, db.getReflogReader("refs/heads/master")
+				.getReverseEntries().size());
 	}
 
 	@Test
@@ -307,6 +396,18 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		assertEquals(lastMasterChange, new RevWalk(db).parseCommit(
 				db.resolve(Constants.HEAD)).getParent(0));
 		assertEquals(origHead, db.readOrigHead());
+		List<ReflogEntry> headLog = db.getReflogReader(Constants.HEAD)
+				.getReverseEntries();
+		List<ReflogEntry> topicLog = db.getReflogReader("refs/heads/topic")
+				.getReverseEntries();
+		List<ReflogEntry> masterLog = db.getReflogReader("refs/heads/master")
+				.getReverseEntries();
+		assertEquals(2, masterLog.size());
+		assertEquals(3, topicLog.size());
+		assertEquals("rebase finished: refs/heads/topic onto "
+				+ lastMasterChange.getName(), topicLog.get(0).getComment());
+		assertEquals("rebase finished: returning to refs/heads/topic", headLog
+				.get(0).getComment());
 	}
 
 	@Test
@@ -345,6 +446,13 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		assertEquals(lastMasterChange, new RevWalk(db).parseCommit(
 				db.resolve(Constants.HEAD)).getParent(0));
 
+		List<ReflogEntry> headLog = db.getReflogReader(Constants.HEAD)
+				.getReverseEntries();
+		assertEquals(8, headLog.size());
+		assertEquals("rebase: change file1 in topic", headLog.get(0)
+				.getComment());
+		assertEquals("checkout: moving from " + topicCommit.getName() + " to "
+				+ lastMasterChange.getName(), headLog.get(1).getComment());
 	}
 
 	@Test
@@ -1482,6 +1590,27 @@ public class RebaseCommandTest extends RepositoryTestCase {
 
 		checkFile(theFile, "dirty the file");
 
+		assertEquals(RepositoryState.SAFE, git.getRepository()
+				.getRepositoryState());
+	}
+
+	@Test
+	public void testAbortShouldAlsoAbortNonInteractiveRebaseWithRebaseApplyDir()
+			throws Exception {
+		writeTrashFile(FILE1, "initial file");
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("initial commit").call();
+
+		File applyDir = new File(db.getDirectory(), "rebase-apply");
+		File headName = new File(applyDir, "head-name");
+		FileUtils.mkdir(applyDir);
+		write(headName, "master");
+		db.writeOrigHead(db.resolve(Constants.HEAD));
+
+		git.rebase().setOperation(Operation.ABORT).call();
+
+		assertFalse("Abort should clean up .git/rebase-apply",
+				applyDir.exists());
 		assertEquals(RepositoryState.SAFE, git.getRepository()
 				.getRepositoryState());
 	}

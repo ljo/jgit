@@ -57,6 +57,7 @@ import java.io.OutputStreamWriter;
 import org.eclipse.jgit.junit.RepositoryTestCase;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.transport.OpenSshConfig.Host;
+import org.eclipse.jgit.util.FS;
 import org.eclipse.jgit.util.FileUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -79,7 +80,7 @@ public class OpenSshConfigTest extends RepositoryTestCase {
 		FileUtils.mkdir(configFile.getParentFile());
 
 		System.setProperty("user.name", "jex_junit");
-		osc = new OpenSshConfig(home, configFile);
+		osc = new OpenSshConfig(FS.DETECTED, home, configFile);
 	}
 
 	private void config(final String data) throws IOException {

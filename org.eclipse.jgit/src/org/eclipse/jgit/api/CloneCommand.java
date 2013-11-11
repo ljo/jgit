@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, Chris Aniszczyk <caniszczyk@gmail.com>
+ * Copyright (C) 2011, 2013 Chris Aniszczyk <caniszczyk@gmail.com>
  * and other copyright owners as documented in the project's IP log.
  *
  * This program and the accompanying materials are made available
@@ -73,6 +73,7 @@ import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.transport.RemoteConfig;
 import org.eclipse.jgit.transport.TagOpt;
 import org.eclipse.jgit.transport.URIish;
+import org.eclipse.jgit.util.FS;
 
 /**
  * Clone a repository into a new working directory
@@ -101,6 +102,8 @@ public class CloneCommand extends TransportCommand<CloneCommand, Git> {
 	private boolean noCheckout;
 
 	private Collection<String> branchesToClone;
+
+	private FS fs = null;
 
 	/**
 	 * Create clone command with no repository set
@@ -139,11 +142,12 @@ public class CloneCommand extends TransportCommand<CloneCommand, Git> {
 		InitCommand command = Git.init();
 		command.setBare(bare);
 		if (directory == null)
-			directory = new File(u.getHumanishName(), Constants.DOT_GIT);
+			directory = fs.resolve(u.getHumanishName(), Constants.DOT_GIT);
 		if (directory.exists() && directory.listFiles().length != 0)
 			throw new JGitInternalException(MessageFormat.format(
 					JGitText.get().cloneNonEmptyDirectory, directory.getName()));
 		command.setDirectory(directory);
+		command.setFS(fs);
 		return command.call().getRepository();
 	}
 
@@ -155,12 +159,11 @@ public class CloneCommand extends TransportCommand<CloneCommand, Git> {
 		RemoteConfig config = new RemoteConfig(clonedRepo.getConfig(), remote);
 		config.addURI(u);
 
-		final String dst = bare ? Constants.R_HEADS : Constants.R_REMOTES
-				+ config.getName();
+		final String dst = (bare ? Constants.R_HEADS : Constants.R_REMOTES
+				+ config.getName() + "/") + "*"; //$NON-NLS-1$//$NON-NLS-2$
 		RefSpec refSpec = new RefSpec();
 		refSpec = refSpec.setForceUpdate(true);
-		refSpec = refSpec.setSourceDestination(
-				Constants.R_HEADS + "*", dst + "/*"); //$NON-NLS-1$ //$NON-NLS-2$
+		refSpec = refSpec.setSourceDestination(Constants.R_HEADS + "*", dst); //$NON-NLS-1$
 
 		config.addFetchRefSpec(refSpec);
 		config.update(clonedRepo.getConfig());
@@ -183,7 +186,7 @@ public class CloneCommand extends TransportCommand<CloneCommand, Git> {
 	private List<RefSpec> calculateRefSpecs(final String dst) {
 		RefSpec wcrs = new RefSpec();
 		wcrs = wcrs.setForceUpdate(true);
-		wcrs = wcrs.setSourceDestination(Constants.R_HEADS + "*", dst + "/*"); //$NON-NLS-1$ //$NON-NLS-2$
+		wcrs = wcrs.setSourceDestination(Constants.R_HEADS + "*", dst); //$NON-NLS-1$
 		List<RefSpec> specs = new ArrayList<RefSpec>();
 		if (cloneAllBranches)
 			specs.add(wcrs);
@@ -200,11 +203,18 @@ public class CloneCommand extends TransportCommand<CloneCommand, Git> {
 			throws MissingObjectException, IncorrectObjectTypeException,
 			IOException, GitAPIException {
 
-		Ref head = result.getAdvertisedRef(branch);
+		Ref head = null;
 		if (branch.equals(Constants.HEAD)) {
 			Ref foundBranch = findBranchToCheckout(result);
 			if (foundBranch != null)
 				head = foundBranch;
+		}
+		if (head == null) {
+			head = result.getAdvertisedRef(branch);
+			if (head == null)
+				head = result.getAdvertisedRef(Constants.R_HEADS + branch);
+			if (head == null)
+				head = result.getAdvertisedRef(Constants.R_TAGS + branch);
 		}
 
 		if (head == null || head.getObjectId() == null)
@@ -364,7 +374,9 @@ public class CloneCommand extends TransportCommand<CloneCommand, Git> {
 
 	/**
 	 * @param branch
-	 *            the initial branch to check out when cloning the repository
+	 *            the initial branch to check out when cloning the repository.
+	 *            Can be specified as ref name (<code>refs/heads/master</code>),
+	 *            branch name (<code>master</code>) or tag name (<code>v1.2.3</code>).
 	 * @return this instance
 	 */
 	public CloneCommand setBranch(String branch) {
@@ -411,7 +423,8 @@ public class CloneCommand extends TransportCommand<CloneCommand, Git> {
 	/**
 	 * @param branchesToClone
 	 *            collection of branches to clone. Ignored when allSelected is
-	 *            true.
+	 *            true. Must be specified as full ref names (e.g.
+	 *            <code>refs/heads/master</code>).
 	 * @return {@code this}
 	 */
 	public CloneCommand setBranchesToClone(Collection<String> branchesToClone) {
@@ -428,6 +441,15 @@ public class CloneCommand extends TransportCommand<CloneCommand, Git> {
 	 */
 	public CloneCommand setNoCheckout(boolean noCheckout) {
 		this.noCheckout = noCheckout;
+		return this;
+	}
+
+	/**
+	 * @param fs
+	 * @return {@code this}
+	 */
+	public CloneCommand setFS(FS fs) {
+		this.fs = fs;
 		return this;
 	}
 }

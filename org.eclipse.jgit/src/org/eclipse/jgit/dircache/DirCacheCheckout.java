@@ -280,7 +280,7 @@ public class DirCacheCheckout {
 		builder = dc.builder();
 
 		walk = new NameConflictTreeWalk(repo);
-		walk.addTree(mergeCommitTree);
+		addTree(walk, mergeCommitTree);
 		walk.addTree(new DirCacheBuildIterator(builder));
 		walk.addTree(workingTree);
 
@@ -417,7 +417,7 @@ public class DirCacheCheckout {
 			builder.finish();
 
 			File file = null;
-			String last = ""; //$NON-NLS-1$
+			String last = null;
 			// when deleting files process them in the opposite order as they have
 			// been reported. This ensures the files are deleted before we delete
 			// their parent folders
@@ -433,8 +433,9 @@ public class DirCacheCheckout {
 					if (!file.isDirectory())
 						toBeDeleted.add(r);
 				} else {
-					if (!isSamePrefix(r, last))
-						removeEmptyParents(new File(repo.getWorkTree(), last));
+					if (last != null && !isSamePrefix(r, last))
+						removeEmptyParents(repo.getFS().resolve(
+								repo.getWorkTree(), last));
 					last = r;
 				}
 			}
@@ -475,7 +476,7 @@ public class DirCacheCheckout {
 	 private void removeEmptyParents(File f) {
 		File parentFile = f.getParentFile();
 
-		while (!parentFile.equals(repo.getWorkTree())) {
+		while (parentFile != null && !parentFile.equals(repo.getWorkTree())) {
 			if (!parentFile.delete())
 				break;
 			parentFile = parentFile.getParentFile();
@@ -1126,15 +1127,12 @@ public class DirCacheCheckout {
 					fs.setExecute(tmpFile, false);
 			}
 		}
-		if (!tmpFile.renameTo(f)) {
-			// tried to rename which failed. Let' delete the target file and try
-			// again
-			FileUtils.delete(f);
-			if (!tmpFile.renameTo(f)) {
-				throw new IOException(MessageFormat.format(
-						JGitText.get().couldNotWriteFile, tmpFile.getPath(),
-						f.getPath()));
-			}
+		try {
+			FileUtils.rename(tmpFile, f);
+		} catch (IOException e) {
+			throw new IOException(MessageFormat.format(
+					JGitText.get().couldNotWriteFile, tmpFile.getPath(),
+					f.getPath()));
 		}
 		entry.setLastModified(f.lastModified());
 		if (opt.getAutoCRLF() != AutoCRLF.FALSE)
