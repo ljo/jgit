@@ -55,11 +55,7 @@ import org.eclipse.jgit.internal.storage.file.PackReverseIndex;
 import org.eclipse.jgit.internal.storage.file.PackIndex.MutableEntry;
 import org.eclipse.jgit.junit.JGitTestUtil;
 import org.eclipse.jgit.junit.RepositoryTestCase;
-<<<<<<< HEAD:org.eclipse.jgit.test/tst/org/eclipse/jgit/storage/file/PackReverseIndexTest.java
-import org.eclipse.jgit.storage.file.PackIndex.MutableEntry;
 import org.eclipse.jgit.util.FS;
-=======
->>>>>>> remotes/eclipse/stable-3.1:org.eclipse.jgit.test/tst/org/eclipse/jgit/internal/storage/file/PackReverseIndexTest.java
 import org.junit.Before;
 import org.junit.Test;
 

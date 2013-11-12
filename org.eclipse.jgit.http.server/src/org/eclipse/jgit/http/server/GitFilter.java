@@ -68,6 +68,7 @@ import org.eclipse.jgit.transport.resolver.FileResolver;
 import org.eclipse.jgit.transport.resolver.ReceivePackFactory;
 import org.eclipse.jgit.transport.resolver.RepositoryResolver;
 import org.eclipse.jgit.transport.resolver.UploadPackFactory;
+import org.eclipse.jgit.util.FS;
 import org.eclipse.jgit.util.StringUtils;
 
 /**
@@ -190,7 +191,8 @@ public class GitFilter extends MetaFilter {
 		if (resolver == null) {
 			File root = getFile(filterConfig, "base-path");
 			boolean exportAll = getBoolean(filterConfig, "export-all");
-			setRepositoryResolver(new FileResolver<HttpServletRequest>(root, exportAll));
+			setRepositoryResolver(new FileResolver<HttpServletRequest>(
+					FS.DETECTED, root, exportAll));
 		}
 
 		initialized = true;

@@ -467,16 +467,25 @@ public abstract class RepositoryTestCase extends LocalDiskRepositoryTestCase {
 	protected RevCommit commitFile(String filename, String contents, String branch) {
 		try {
 			Git git = new Git(db);
-			String originalBranch = git.getRepository().getFullBranch();
-			if (git.getRepository().getRef(branch) == null)
-				git.branchCreate().setName(branch).call();
-			git.checkout().setName(branch).call();
+			Repository repo = git.getRepository();
+			String originalBranch = repo.getFullBranch();
+			boolean empty = repo.resolve(Constants.HEAD) == null;
+			if (!empty) {
+				if (repo.getRef(branch) == null)
+					git.branchCreate().setName(branch).call();
+				git.checkout().setName(branch).call();
+			}
+
 			writeTrashFile(filename, contents);
 			git.add().addFilepattern(filename).call();
 			RevCommit commit = git.commit()
 					.setMessage(branch + ": " + filename).call();
+
 			if (originalBranch != null)
 				git.checkout().setName(originalBranch).call();
+			else if (empty)
+				git.branchCreate().setName(branch).setStartPoint(commit).call();
+
 			return commit;
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -519,5 +528,10 @@ public abstract class RepositoryTestCase extends LocalDiskRepositoryTestCase {
 
 	protected File resolve(final String name) {
 		return db.getFS().resolve(db.getWorkTree(), name);
+	}
+
+	public static void assertEqualsFile(File expected, File actual)
+			throws IOException {
+		assertEquals(expected.getCanonicalFile(), actual.getCanonicalFile());
 	}
 }

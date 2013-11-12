@@ -140,7 +140,8 @@ public class PullCommandTest extends RepositoryTestCase {
 		assertEquals(sourceCommit.getId(), mergedCommits[1]);
 		RevCommit mergeCommit = new RevWalk(dbTarget).parseCommit(mergeResult
 				.getNewHead());
-		String message = "Merge branch 'master' of " + db.getWorkTree();
+		String message = "Merge branch 'master' of "
+				+ db.getWorkTree().getAbsolutePath();
 		assertEquals(message, mergeCommit.getShortMessage());
 	}
 
@@ -256,7 +257,7 @@ public class PullCommandTest extends RepositoryTestCase {
 
 		config
 				.addURI(new URIish(source.getRepository().getWorkTree()
-						.getPath()));
+						.getAbsolutePath()));
 		config.addFetchRefSpec(new RefSpec(
 				"+refs/heads/*:refs/remotes/origin/*"));
 		config.update(targetConfig);

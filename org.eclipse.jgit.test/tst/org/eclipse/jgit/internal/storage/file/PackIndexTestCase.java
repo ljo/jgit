@@ -55,11 +55,7 @@ import org.eclipse.jgit.errors.MissingObjectException;
 import org.eclipse.jgit.internal.storage.file.PackIndex;
 import org.eclipse.jgit.internal.storage.file.PackIndex.MutableEntry;
 import org.eclipse.jgit.junit.RepositoryTestCase;
-<<<<<<< HEAD:org.eclipse.jgit.test/tst/org/eclipse/jgit/storage/file/PackIndexTestCase.java
-import org.eclipse.jgit.storage.file.PackIndex.MutableEntry;
 import org.eclipse.jgit.util.FS;
-=======
->>>>>>> remotes/eclipse/stable-3.1:org.eclipse.jgit.test/tst/org/eclipse/jgit/internal/storage/file/PackIndexTestCase.java
 import org.junit.Test;
 
 public abstract class PackIndexTestCase extends RepositoryTestCase {

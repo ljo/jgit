@@ -75,11 +75,8 @@ public class T0004_PackReaderTest extends SampleDataRepositoryTestCase {
 		final ObjectLoader or;
 
 		id = ObjectId.fromString("902d5476fa249b7abc9d84c611577a81381f0327");
-<<<<<<< HEAD:org.eclipse.jgit.test/tst/org/eclipse/jgit/storage/file/T0004_PackReaderTest.java
-		pr = new PackFile(FS.DETECTED, TEST_PACK);
-=======
-		pr = new PackFile(TEST_PACK, PACK.getBit() | INDEX.getBit());
->>>>>>> remotes/eclipse/stable-3.1:org.eclipse.jgit.test/tst/org/eclipse/jgit/internal/storage/file/T0004_PackReaderTest.java
+		pr = new PackFile(FS.DETECTED, TEST_PACK, PACK.getBit()
+				| INDEX.getBit());
 		or = pr.get(new WindowCursor(null), id);
 		assertNotNull(or);
 		assertEquals(Constants.OBJ_TREE, or.getType());
