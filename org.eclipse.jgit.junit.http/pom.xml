@@ -72,12 +72,6 @@
     </dependency>
 
     <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <scope>provided</scope>
-    </dependency>
-
-    <dependency>
       <groupId>org.eclipse.jgit</groupId>
       <artifactId>org.eclipse.jgit.http.server</artifactId>
       <version>${project.version}</version>
@@ -87,11 +81,6 @@
       <groupId>org.eclipse.jgit</groupId>
       <artifactId>org.eclipse.jgit.junit</artifactId>
       <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-servlet</artifactId>
     </dependency>
   </dependencies>
 

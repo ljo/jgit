@@ -68,13 +68,6 @@
     <source-bundle-manifest>${project.build.directory}/META-INF/SOURCE-MANIFEST.MF</source-bundle-manifest>
   </properties>
 
-  <dependencies>
-    <dependency>
-      <groupId>com.jcraft</groupId>
-      <artifactId>jsch</artifactId>
-    </dependency>
-  </dependencies>
-
   <build>
     <sourceDirectory>src/</sourceDirectory>
 

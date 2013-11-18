@@ -425,7 +425,6 @@
     </plugins>
   </build>
 
-  <dependencyManagement>
     <dependencies>
       <dependency>
         <groupId>com.jcraft</groupId>
@@ -475,8 +474,7 @@
         <version>${osgi-core-version}</version>
       </dependency>
     </dependencies>
-  </dependencyManagement>
-
+ 
   <distributionManagement>
     <repository>
       <id>repo.eclipse.org</id>

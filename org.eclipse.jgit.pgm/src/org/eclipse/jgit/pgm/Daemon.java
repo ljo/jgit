@@ -121,7 +121,8 @@ class Daemon extends TextBuiltin {
 		if (1 < threads)
 			packConfig.setExecutor(Executors.newFixedThreadPool(threads));
 
-		final FileResolver<DaemonClient> resolver = new FileResolver<DaemonClient>();
+		final FileResolver<DaemonClient> resolver = new FileResolver<DaemonClient>(
+				FS.DETECTED);
 		for (final File f : directory) {
 			outw.println(MessageFormat.format(CLIText.get().exporting, f.getAbsolutePath()));
 			resolver.exportDirectory(f);
