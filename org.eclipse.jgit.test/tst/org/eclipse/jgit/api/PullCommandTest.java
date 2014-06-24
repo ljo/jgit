@@ -65,7 +65,6 @@ import org.eclipse.jgit.lib.RepositoryState;
 import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
-import org.eclipse.jgit.storage.file.FileRepository;
 import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.transport.RemoteConfig;
 import org.eclipse.jgit.transport.URIish;
@@ -75,7 +74,7 @@ import org.junit.Test;
 
 public class PullCommandTest extends RepositoryTestCase {
 	/** Second Test repository */
-	protected FileRepository dbTarget;
+	protected Repository dbTarget;
 
 	private Git source;
 
@@ -141,7 +140,8 @@ public class PullCommandTest extends RepositoryTestCase {
 		assertEquals(sourceCommit.getId(), mergedCommits[1]);
 		RevCommit mergeCommit = new RevWalk(dbTarget).parseCommit(mergeResult
 				.getNewHead());
-		String message = "Merge branch 'master' of " + db.getWorkTree();
+		String message = "Merge branch 'master' of "
+				+ db.getWorkTree().getAbsolutePath();
 		assertEquals(message, mergeCommit.getShortMessage());
 	}
 
@@ -257,7 +257,7 @@ public class PullCommandTest extends RepositoryTestCase {
 
 		config
 				.addURI(new URIish(source.getRepository().getWorkTree()
-						.getPath()));
+						.getAbsolutePath()));
 		config.addFetchRefSpec(new RefSpec(
 				"+refs/heads/*:refs/remotes/origin/*"));
 		config.update(targetConfig);

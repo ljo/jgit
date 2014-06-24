@@ -70,8 +70,16 @@ public class FileResolver<C> implements RepositoryResolver<C> {
 
 	private final Collection<File> exportBase;
 
-	/** Initialize an empty file based resolver. */
-	public FileResolver() {
+	private final FS fs;
+
+	/**
+	 * Initialize an empty file based resolver.
+	 *
+	 * @param fs
+	 */
+	public FileResolver(final FS fs) {
+		this.fs = fs;
+
 		exports = new ConcurrentHashMap<String, Repository>();
 		exportBase = new CopyOnWriteArrayList<File>();
 	}
@@ -79,21 +87,24 @@ public class FileResolver<C> implements RepositoryResolver<C> {
 	/**
 	 * Create a new resolver for the given path.
 	 *
+	 * @param fs
+	 *
 	 * @param basePath
 	 *            the base path all repositories are rooted under.
 	 * @param exportAll
 	 *            if true, exports all repositories, ignoring the check for the
 	 *            {@code git-daemon-export-ok} files.
 	 */
-	public FileResolver(final File basePath, final boolean exportAll) {
-		this();
+	public FileResolver(final FS fs, final File basePath,
+			final boolean exportAll) {
+		this(fs);
 		exportDirectory(basePath);
 		setExportAll(exportAll);
 	}
 
 	public Repository open(final C req, final String name)
 			throws RepositoryNotFoundException, ServiceNotEnabledException {
-		if (isUnreasonableName(name))
+		if (isUnreasonableName(fs, name))
 			throw new RepositoryNotFoundException(name);
 
 		Repository db = exports.get(nameWithDotGit(name));
@@ -103,7 +114,7 @@ public class FileResolver<C> implements RepositoryResolver<C> {
 		}
 
 		for (File base : exportBase) {
-			File dir = FileKey.resolve(new File(base, name), FS.DETECTED);
+			File dir = FileKey.resolve(fs.resolve(base, name), FS.DETECTED);
 			if (dir == null)
 				continue;
 
@@ -138,7 +149,7 @@ public class FileResolver<C> implements RepositoryResolver<C> {
 		}
 
 		if (exportBase.size() == 1) {
-			File dir = new File(exportBase.iterator().next(), name);
+			File dir = fs.resolve(exportBase.iterator().next(), name);
 			throw new RepositoryNotFoundException(name,
 					new RepositoryNotFoundException(dir));
 		}
@@ -222,7 +233,8 @@ public class FileResolver<C> implements RepositoryResolver<C> {
 		if (isExportAll())
 			return true;
 		else if (db.getDirectory() != null)
-			return new File(db.getDirectory(), "git-daemon-export-ok").exists(); //$NON-NLS-1$
+			return fs
+					.resolve(db.getDirectory(), "git-daemon-export-ok").exists(); //$NON-NLS-1$
 		else
 			return false;
 	}
@@ -233,21 +245,21 @@ public class FileResolver<C> implements RepositoryResolver<C> {
 		return name + Constants.DOT_GIT_EXT;
 	}
 
-	private static boolean isUnreasonableName(final String name) {
+	private static boolean isUnreasonableName(FS fs, final String name) {
 		if (name.length() == 0)
 			return true; // no empty paths
 
 		if (name.indexOf('\\') >= 0)
 			return true; // no windows/dos style paths
-		if (new File(name).isAbsolute())
+		if (fs.resolve(name).isAbsolute())
 			return true; // no absolute paths
 
 		if (name.startsWith("../")) //$NON-NLS-1$
-			return true; // no "l../etc/passwd" 
+			return true; // no "l../etc/passwd"
 		if (name.contains("/../")) //$NON-NLS-1$
-			return true; // no "foo/../etc/passwd" 
+			return true; // no "foo/../etc/passwd"
 		if (name.contains("/./")) //$NON-NLS-1$
-			return true; // "foo/./foo" is insane to ask 
+			return true; // "foo/./foo" is insane to ask
 		if (name.contains("//")) //$NON-NLS-1$
 			return true; // double slashes is sloppy, don't use it
 

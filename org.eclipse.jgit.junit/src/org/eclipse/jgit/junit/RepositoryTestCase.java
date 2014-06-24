@@ -67,6 +67,7 @@ import org.eclipse.jgit.dircache.DirCache;
 import org.eclipse.jgit.dircache.DirCacheBuilder;
 import org.eclipse.jgit.dircache.DirCacheCheckout;
 import org.eclipse.jgit.dircache.DirCacheEntry;
+import org.eclipse.jgit.internal.storage.file.FileRepository;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
@@ -75,7 +76,6 @@ import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
-import org.eclipse.jgit.storage.file.FileRepository;
 import org.eclipse.jgit.treewalk.FileTreeIterator;
 import org.eclipse.jgit.util.FS;
 import org.eclipse.jgit.util.FileUtils;
@@ -380,18 +380,19 @@ public abstract class RepositoryTestCase extends LocalDiskRepositoryTestCase {
 	public static long fsTick(File lastFile) throws InterruptedException,
 			IOException {
 		long sleepTime = 1;
-		if (lastFile != null && !lastFile.exists())
+		FS fs = FS.DETECTED;
+		if (lastFile != null && !fs.exists(lastFile))
 			throw new FileNotFoundException(lastFile.getPath());
 		File tmp = File.createTempFile("FileTreeIteratorWithTimeControl", null);
 		try {
-			long startTime = (lastFile == null) ? tmp.lastModified() : lastFile
-					.lastModified();
-			long actTime = tmp.lastModified();
+			long startTime = (lastFile == null) ? fs.lastModified(tmp) : fs
+					.lastModified(lastFile);
+			long actTime = fs.lastModified(tmp);
 			while (actTime <= startTime) {
 				Thread.sleep(sleepTime);
 				sleepTime *= 5;
-				tmp.setLastModified(System.currentTimeMillis());
-				actTime = tmp.lastModified();
+				fs.setLastModified(tmp, System.currentTimeMillis());
+				actTime = fs.lastModified(tmp);
 			}
 			return actTime;
 		} finally {
@@ -418,6 +419,7 @@ public abstract class RepositoryTestCase extends LocalDiskRepositoryTestCase {
 		walk.release();
 		// update the HEAD
 		RefUpdate refUpdate = db.updateRef(Constants.HEAD);
+		refUpdate.setRefLogMessage("checkout: moving to " + branchName, false);
 		refUpdate.link(branchName);
 	}
 
@@ -465,16 +467,25 @@ public abstract class RepositoryTestCase extends LocalDiskRepositoryTestCase {
 	protected RevCommit commitFile(String filename, String contents, String branch) {
 		try {
 			Git git = new Git(db);
-			String originalBranch = git.getRepository().getFullBranch();
-			if (git.getRepository().getRef(branch) == null)
-				git.branchCreate().setName(branch).call();
-			git.checkout().setName(branch).call();
+			Repository repo = git.getRepository();
+			String originalBranch = repo.getFullBranch();
+			boolean empty = repo.resolve(Constants.HEAD) == null;
+			if (!empty) {
+				if (repo.getRef(branch) == null)
+					git.branchCreate().setName(branch).call();
+				git.checkout().setName(branch).call();
+			}
+
 			writeTrashFile(filename, contents);
 			git.add().addFilepattern(filename).call();
 			RevCommit commit = git.commit()
 					.setMessage(branch + ": " + filename).call();
+
 			if (originalBranch != null)
 				git.checkout().setName(originalBranch).call();
+			else if (empty)
+				git.branchCreate().setName(branch).setStartPoint(commit).call();
+
 			return commit;
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -517,5 +528,10 @@ public abstract class RepositoryTestCase extends LocalDiskRepositoryTestCase {
 
 	protected File resolve(final String name) {
 		return db.getFS().resolve(db.getWorkTree(), name);
+	}
+
+	public static void assertEqualsFile(File expected, File actual)
+			throws IOException {
+		assertEquals(expected.getCanonicalFile(), actual.getCanonicalFile());
 	}
 }

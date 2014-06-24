@@ -255,7 +255,8 @@ public abstract class JschConfigSessionFactory extends SshSessionFactory {
 		final File home = fs.userHome();
 		if (home == null)
 			return;
-		final File known_hosts = new File(new File(home, ".ssh"), "known_hosts"); //$NON-NLS-1$ //$NON-NLS-2$
+		final File known_hosts = fs.resolve(
+				fs.resolve(home, ".ssh"), "known_hosts"); //$NON-NLS-1$ //$NON-NLS-2$
 		try {
 			final FileInputStream in = new FileInputStream(known_hosts);
 			try {
@@ -274,11 +275,11 @@ public abstract class JschConfigSessionFactory extends SshSessionFactory {
 		final File home = fs.userHome();
 		if (home == null)
 			return;
-		final File sshdir = new File(home, ".ssh"); //$NON-NLS-1$
+		final File sshdir = fs.resolve(home, ".ssh"); //$NON-NLS-1$
 		if (sshdir.isDirectory()) {
-			loadIdentity(sch, new File(sshdir, "identity")); //$NON-NLS-1$
-			loadIdentity(sch, new File(sshdir, "id_rsa")); //$NON-NLS-1$
-			loadIdentity(sch, new File(sshdir, "id_dsa")); //$NON-NLS-1$
+			loadIdentity(sch, fs.resolve(sshdir, "identity")); //$NON-NLS-1$
+			loadIdentity(sch, fs.resolve(sshdir, "id_rsa")); //$NON-NLS-1$
+			loadIdentity(sch, fs.resolve(sshdir, "id_dsa")); //$NON-NLS-1$
 		}
 	}
 

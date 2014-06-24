@@ -50,8 +50,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
 
+import org.eclipse.jgit.pgm.internal.CLIText;
 import org.eclipse.jgit.storage.file.FileBasedConfig;
-import org.eclipse.jgit.storage.file.WindowCache;
 import org.eclipse.jgit.storage.file.WindowCacheConfig;
 import org.eclipse.jgit.storage.pack.PackConfig;
 import org.eclipse.jgit.transport.DaemonClient;
@@ -111,11 +111,7 @@ class Daemon extends TextBuiltin {
 
 			FileBasedConfig cfg = new FileBasedConfig(configFile, FS.DETECTED);
 			cfg.load();
-
-			WindowCacheConfig wcc = new WindowCacheConfig();
-			wcc.fromConfig(cfg);
-			WindowCache.reconfigure(wcc);
-
+			new WindowCacheConfig().fromConfig(cfg).install();
 			packConfig.fromConfig(cfg);
 		}
 
@@ -125,7 +121,8 @@ class Daemon extends TextBuiltin {
 		if (1 < threads)
 			packConfig.setExecutor(Executors.newFixedThreadPool(threads));
 
-		final FileResolver<DaemonClient> resolver = new FileResolver<DaemonClient>();
+		final FileResolver<DaemonClient> resolver = new FileResolver<DaemonClient>(
+				FS.DETECTED);
 		for (final File f : directory) {
 			outw.println(MessageFormat.format(CLIText.get().exporting, f.getAbsolutePath()));
 			resolver.exportDirectory(f);

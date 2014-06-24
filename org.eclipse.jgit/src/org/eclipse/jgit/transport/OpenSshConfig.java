@@ -91,13 +91,16 @@ public class OpenSshConfig {
 	public static OpenSshConfig get(FS fs) {
 		File home = fs.userHome();
 		if (home == null)
-			home = new File(".").getAbsoluteFile(); //$NON-NLS-1$
+			home = fs.resolve(".").getAbsoluteFile(); //$NON-NLS-1$
 
-		final File config = new File(new File(home, ".ssh"), Constants.CONFIG); //$NON-NLS-1$
-		final OpenSshConfig osc = new OpenSshConfig(home, config);
+		final File config = fs.resolve(
+				fs.resolve(home, ".ssh"), Constants.CONFIG); //$NON-NLS-1$
+		final OpenSshConfig osc = new OpenSshConfig(fs, home, config);
 		osc.refresh();
 		return osc;
 	}
+
+	private final FS fs;
 
 	/** The user's home directory, as key files may be relative to here. */
 	private final File home;
@@ -111,7 +114,8 @@ public class OpenSshConfig {
 	/** Cached entries read out of the configuration file. */
 	private Map<String, Host> hosts;
 
-	OpenSshConfig(final File h, final File cfg) {
+	OpenSshConfig(final FS f, final File h, final File cfg) {
+		fs = f;
 		home = h;
 		configFile = cfg;
 		hosts = Collections.emptyMap();
@@ -288,11 +292,11 @@ public class OpenSshConfig {
 
 	private File toFile(final String path) {
 		if (path.startsWith("~/")) //$NON-NLS-1$
-			return new File(home, path.substring(2));
-		File ret = new File(path);
+			return fs.resolve(home, path.substring(2));
+		File ret = fs.resolve(path);
 		if (ret.isAbsolute())
 			return ret;
-		return new File(home, path);
+		return fs.resolve(home, path);
 	}
 
 	static String userName() {

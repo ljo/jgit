@@ -56,8 +56,8 @@ import java.text.SimpleDateFormat;
 import java.util.Locale;
 import java.util.TimeZone;
 
-import org.eclipse.jgit.lib.Config;
 import org.eclipse.jgit.storage.file.FileBasedConfig;
+import org.eclipse.jgit.lib.Config;
 
 /**
  * Interface to read values from the system.
@@ -137,7 +137,8 @@ public abstract class SystemReader {
 
 	/**
 	 * @param newReader
-	 *            the new instance to use when accessing properties.
+	 *            the new instance to use when accessing properties, or null for
+	 *            the default instance.
 	 */
 	public static void setInstance(SystemReader newReader) {
 		if (newReader == null)

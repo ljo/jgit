@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, Mathias Kinzler <mathias.kinzler@sap.com>
+ * Copyright (C) 2010, 2013 Mathias Kinzler <mathias.kinzler@sap.com>
  * and other copyright owners as documented in the project's IP log.
  *
  * This program and the accompanying materials are made available
@@ -42,6 +42,9 @@
  */
 package org.eclipse.jgit.api;
 
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -56,30 +59,38 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.eclipse.jgit.api.MergeResult.MergeStatus;
-import org.eclipse.jgit.api.RebaseCommand.Action;
 import org.eclipse.jgit.api.RebaseCommand.InteractiveHandler;
 import org.eclipse.jgit.api.RebaseCommand.Operation;
-import org.eclipse.jgit.api.RebaseCommand.Step;
 import org.eclipse.jgit.api.RebaseResult.Status;
+import org.eclipse.jgit.api.errors.InvalidRebaseStepException;
 import org.eclipse.jgit.api.errors.JGitInternalException;
 import org.eclipse.jgit.api.errors.RefNotFoundException;
 import org.eclipse.jgit.api.errors.UnmergedPathsException;
 import org.eclipse.jgit.api.errors.WrongRepositoryStateException;
 import org.eclipse.jgit.dircache.DirCacheCheckout;
 import org.eclipse.jgit.junit.RepositoryTestCase;
+import org.eclipse.jgit.lib.AbbreviatedObjectId;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.PersonIdent;
+import org.eclipse.jgit.lib.RebaseTodoLine;
+import org.eclipse.jgit.lib.RebaseTodoLine.Action;
 import org.eclipse.jgit.lib.RefUpdate;
+import org.eclipse.jgit.lib.ReflogEntry;
 import org.eclipse.jgit.lib.RepositoryState;
 import org.eclipse.jgit.merge.MergeStrategy;
 import org.eclipse.jgit.merge.ResolveMerger.MergeFailureReason;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.util.FileUtils;
+import org.eclipse.jgit.util.IO;
+import org.eclipse.jgit.util.RawParseUtils;
 import org.junit.Before;
 import org.junit.Test;
 
 public class RebaseCommandTest extends RepositoryTestCase {
+	private static final String GIT_REBASE_TODO = "rebase-merge/git-rebase-todo";
+
 	private static final String FILE1 = "file1";
 
 	protected Git git;
@@ -103,6 +114,8 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		// update the HEAD
 		RefUpdate refUpdate = db.updateRef(Constants.HEAD, true);
 		refUpdate.setNewObjectId(commit);
+		refUpdate.setRefLogMessage("checkout: moving to " + head.getName(),
+				false);
 		refUpdate.forceUpdate();
 	}
 
@@ -119,7 +132,7 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		// create file2 on master
 		File file2 = writeTrashFile("file2", "file2");
 		git.add().addFilepattern("file2").call();
-		git.commit().setMessage("Add file2").call();
+		RevCommit second = git.commit().setMessage("Add file2").call();
 		assertTrue(resolve(db.getWorkTree(), "file2").exists());
 
 		checkoutBranch("refs/heads/topic");
@@ -129,6 +142,22 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		assertTrue(resolve(db.getWorkTree(), "file2").exists());
 		checkFile(file2, "file2");
 		assertEquals(Status.FAST_FORWARD, res.getStatus());
+
+		List<ReflogEntry> headLog = db.getReflogReader(Constants.HEAD)
+				.getReverseEntries();
+		List<ReflogEntry> topicLog = db.getReflogReader("refs/heads/topic")
+				.getReverseEntries();
+		List<ReflogEntry> masterLog = db.getReflogReader("refs/heads/master")
+				.getReverseEntries();
+		assertEquals("rebase finished: returning to refs/heads/topic", headLog
+				.get(0).getComment());
+		assertEquals("checkout: moving from topic to " + second.getName(),
+				headLog.get(1).getComment());
+		assertEquals(2, masterLog.size());
+		assertEquals(2, topicLog.size());
+		assertEquals(
+				"rebase finished: refs/heads/topic onto " + second.getName(),
+				topicLog.get(0).getComment());
 	}
 
 	@Test
@@ -149,7 +178,8 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		// write a second commit
 		writeTrashFile("file2", "file2 new content");
 		git.add().addFilepattern("file2").call();
-		git.commit().setMessage("Change content of file2").call();
+		RevCommit second = git.commit().setMessage("Change content of file2")
+				.call();
 
 		checkoutBranch("refs/heads/topic");
 		assertFalse(resolve(db.getWorkTree(), "file2").exists());
@@ -158,74 +188,130 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		assertTrue(resolve(db.getWorkTree(), "file2").exists());
 		checkFile(file2, "file2 new content");
 		assertEquals(Status.FAST_FORWARD, res.getStatus());
+
+		List<ReflogEntry> headLog = db.getReflogReader(Constants.HEAD)
+				.getReverseEntries();
+		List<ReflogEntry> topicLog = db.getReflogReader("refs/heads/topic")
+				.getReverseEntries();
+		List<ReflogEntry> masterLog = db.getReflogReader("refs/heads/master")
+				.getReverseEntries();
+		assertEquals("rebase finished: returning to refs/heads/topic", headLog
+				.get(0).getComment());
+		assertEquals("checkout: moving from topic to " + second.getName(),
+				headLog.get(1).getComment());
+		assertEquals(3, masterLog.size());
+		assertEquals(2, topicLog.size());
+		assertEquals(
+				"rebase finished: refs/heads/topic onto " + second.getName(),
+				topicLog.get(0).getComment());
 	}
 
+	/**
+	 * Create the following commits and then attempt to rebase topic onto
+	 * master. This will serialize the branches.
+	 *
+	 * <pre>
+	 * A - B (master)
+	 *   \
+	 *    C - D - F (topic)
+	 *     \      /
+	 *      E  -  (side)
+	 * </pre>
+	 *
+	 * into
+	 *
+	 * <pre>
+	 * A - B - (master)  C' - D' - E' (topic')
+	 *   \
+	 *    C - D - F (topic)
+	 *     \      /
+	 *      E  -  (side)
+	 * </pre>
+	 *
+	 * @throws Exception
+	 */
 	@Test
-	public void testRebaseFailsCantCherryPickMergeCommits()
+	public void testRebaseShouldIgnoreMergeCommits()
 			throws Exception {
-		/**
-		 * Create the following commits and then attempt to rebase topic onto
-		 * master. This will fail as the cherry-pick list C, D, E an F contains
-		 * a merge commit (F).
-		 *
-		 * <pre>
-		 * A - B (master)
-		 *   \
-		 *    C - D - F (topic)
-		 *     \      /
-		 *      E  -  (side)
-		 * </pre>
-		 */
 		// create file1 on master
 		writeTrashFile(FILE1, FILE1);
 		git.add().addFilepattern(FILE1).call();
-		RevCommit first = git.commit().setMessage("Add file1").call();
+		RevCommit a = git.commit().setMessage("Add file1").call();
 		assertTrue(resolve(db.getWorkTree(), FILE1).exists());
 
 		// create a topic branch
-		createBranch(first, "refs/heads/topic");
+		createBranch(a, "refs/heads/topic");
 
 		// update FILE1 on master
 		writeTrashFile(FILE1, "blah");
 		git.add().addFilepattern(FILE1).call();
-		git.commit().setMessage("updated file1 on master").call();
+		RevCommit b = git.commit().setMessage("updated file1 on master").call();
 
 		checkoutBranch("refs/heads/topic");
 		writeTrashFile("file3", "more changess");
 		git.add().addFilepattern("file3").call();
-		RevCommit topicCommit = git.commit()
+		RevCommit c = git.commit()
 				.setMessage("update file3 on topic").call();
 
 		// create a branch from the topic commit
-		createBranch(topicCommit, "refs/heads/side");
+		createBranch(c, "refs/heads/side");
 
 		// second commit on topic
 		writeTrashFile("file2", "file2");
 		git.add().addFilepattern("file2").call();
-		git.commit().setMessage("Add file2").call();
+		RevCommit d = git.commit().setMessage("Add file2").call();
 		assertTrue(resolve(db.getWorkTree(), "file2").exists());
 
 		// switch to side branch and update file2
 		checkoutBranch("refs/heads/side");
 		writeTrashFile("file3", "more change");
 		git.add().addFilepattern("file3").call();
-		RevCommit sideCommit = git.commit().setMessage("update file2 on side")
+		RevCommit e = git.commit().setMessage("update file2 on side")
 				.call();
 
-		// switch back to topic and merge in side
+		// switch back to topic and merge in side, creating f
 		checkoutBranch("refs/heads/topic");
-		MergeResult result = git.merge().include(sideCommit.getId())
+		MergeResult result = git.merge().include(e.getId())
 				.setStrategy(MergeStrategy.RESOLVE).call();
 		assertEquals(MergeStatus.MERGED, result.getMergeStatus());
+		RebaseResult res = git.rebase().setUpstream("refs/heads/master").call();
+		assertEquals(Status.OK, res.getStatus());
 
-		try {
-			RebaseResult rebase = git.rebase().setUpstream("refs/heads/master")
-					.call();
-			fail("MultipleParentsNotAllowedException expected: "
-					+ rebase.getStatus());
-		} catch (JGitInternalException e) {
-			// expected
-		}
+		RevWalk rw = new RevWalk(db);
+		rw.markStart(rw.parseCommit(db.resolve("refs/heads/topic")));
+		assertDerivedFrom(rw.next(), e);
+		assertDerivedFrom(rw.next(), d);
+		assertDerivedFrom(rw.next(), c);
+		assertEquals(b, rw.next());
+		assertEquals(a, rw.next());
+
+		List<ReflogEntry> headLog = db.getReflogReader(Constants.HEAD)
+				.getReverseEntries();
+		List<ReflogEntry> sideLog = db.getReflogReader("refs/heads/side")
+				.getReverseEntries();
+		List<ReflogEntry> topicLog = db.getReflogReader("refs/heads/topic")
+				.getReverseEntries();
+		List<ReflogEntry> masterLog = db.getReflogReader("refs/heads/master")
+				.getReverseEntries();
+		assertEquals("rebase finished: returning to refs/heads/topic", headLog
+				.get(0).getComment());
+		assertEquals("rebase: update file2 on side", headLog.get(1)
+				.getComment());
+		assertEquals("rebase: Add file2", headLog.get(2).getComment());
+		assertEquals("rebase: update file3 on topic", headLog.get(3)
+				.getComment());
+		assertEquals("checkout: moving from topic to " + b.getName(), headLog
+				.get(4).getComment());
+		assertEquals(2, masterLog.size());
+		assertEquals(2, sideLog.size());
+		assertEquals(5, topicLog.size());
+		assertEquals("rebase finished: refs/heads/topic onto " + b.getName(),
+				topicLog.get(0).getComment());
+	}
+
+	static void assertDerivedFrom(RevCommit derived, RevCommit original) {
+		assertThat(derived, not(equalTo(original)));
+		assertEquals(original.getFullMessage(), derived.getFullMessage());
 	}
 
 	@Test
@@ -240,6 +326,11 @@ public class RebaseCommandTest extends RepositoryTestCase {
 
 		RebaseResult result = git.rebase().setUpstream(parent).call();
 		assertEquals(Status.UP_TO_DATE, result.getStatus());
+
+		assertEquals(2, db.getReflogReader(Constants.HEAD).getReverseEntries()
+				.size());
+		assertEquals(2, db.getReflogReader("refs/heads/master")
+				.getReverseEntries().size());
 	}
 
 	@Test
@@ -253,6 +344,11 @@ public class RebaseCommandTest extends RepositoryTestCase {
 
 		RebaseResult res = git.rebase().setUpstream(first).call();
 		assertEquals(Status.UP_TO_DATE, res.getStatus());
+
+		assertEquals(1, db.getReflogReader(Constants.HEAD).getReverseEntries()
+				.size());
+		assertEquals(1, db.getReflogReader("refs/heads/master")
+				.getReverseEntries().size());
 	}
 
 	@Test
@@ -307,6 +403,18 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		assertEquals(lastMasterChange, new RevWalk(db).parseCommit(
 				db.resolve(Constants.HEAD)).getParent(0));
 		assertEquals(origHead, db.readOrigHead());
+		List<ReflogEntry> headLog = db.getReflogReader(Constants.HEAD)
+				.getReverseEntries();
+		List<ReflogEntry> topicLog = db.getReflogReader("refs/heads/topic")
+				.getReverseEntries();
+		List<ReflogEntry> masterLog = db.getReflogReader("refs/heads/master")
+				.getReverseEntries();
+		assertEquals(2, masterLog.size());
+		assertEquals(3, topicLog.size());
+		assertEquals("rebase finished: refs/heads/topic onto "
+				+ lastMasterChange.getName(), topicLog.get(0).getComment());
+		assertEquals("rebase finished: returning to refs/heads/topic", headLog
+				.get(0).getComment());
 	}
 
 	@Test
@@ -345,6 +453,13 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		assertEquals(lastMasterChange, new RevWalk(db).parseCommit(
 				db.resolve(Constants.HEAD)).getParent(0));
 
+		List<ReflogEntry> headLog = db.getReflogReader(Constants.HEAD)
+				.getReverseEntries();
+		assertEquals(8, headLog.size());
+		assertEquals("rebase: change file1 in topic", headLog.get(0)
+				.getComment());
+		assertEquals("checkout: moving from " + topicCommit.getName() + " to "
+				+ lastMasterChange.getName(), headLog.get(1).getComment());
 	}
 
 	@Test
@@ -1388,15 +1503,18 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		try {
 			String line = br.readLine();
 			while (line != null) {
-				String actionToken = line.substring(0, line.indexOf(' '));
-				Action action = null;
-				try {
-					action = Action.parse(actionToken);
-				} catch (Exception e) {
-					// ignore
+				int firstBlank = line.indexOf(' ');
+				if (firstBlank != -1) {
+					String actionToken = line.substring(0, firstBlank);
+					Action action = null;
+					try {
+						action = Action.parse(actionToken);
+					} catch (Exception e) {
+						// ignore
+					}
+					if (Action.PICK.equals(action))
+						count++;
 				}
-				if (action != null)
-					count++;
 				line = br.readLine();
 			}
 			return count;
@@ -1487,6 +1605,27 @@ public class RebaseCommandTest extends RepositoryTestCase {
 	}
 
 	@Test
+	public void testAbortShouldAlsoAbortNonInteractiveRebaseWithRebaseApplyDir()
+			throws Exception {
+		writeTrashFile(FILE1, "initial file");
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("initial commit").call();
+
+		File applyDir = new File(db.getDirectory(), "rebase-apply");
+		File headName = new File(applyDir, "head-name");
+		FileUtils.mkdir(applyDir);
+		write(headName, "master");
+		db.writeOrigHead(db.resolve(Constants.HEAD));
+
+		git.rebase().setOperation(Operation.ABORT).call();
+
+		assertFalse("Abort should clean up .git/rebase-apply",
+				applyDir.exists());
+		assertEquals(RepositoryState.SAFE, git.getRepository()
+				.getRepositoryState());
+	}
+
+	@Test
 	public void testRebaseShouldBeAbleToHandleEmptyLinesInRebaseTodoFile()
 			throws IOException {
 		String emptyLine = "\n";
@@ -1495,11 +1634,61 @@ public class RebaseCommandTest extends RepositoryTestCase {
 				+ "# Comment line at end\n";
 		write(getTodoFile(), todo);
 
-		RebaseCommand rebaseCommand = git.rebase();
-		List<Step> steps = rebaseCommand.loadSteps();
+		List<RebaseTodoLine> steps = db.readRebaseTodo(GIT_REBASE_TODO, false);
 		assertEquals(2, steps.size());
-		assertEquals("1111111", steps.get(0).commit.name());
-		assertEquals("2222222", steps.get(1).commit.name());
+		assertEquals("1111111", steps.get(0).getCommit().name());
+		assertEquals("2222222", steps.get(1).getCommit().name());
+	}
+
+	@Test
+	public void testRebaseShouldNotFailIfUserAddCommentLinesInPrepareSteps()
+			throws Exception {
+		commitFile(FILE1, FILE1, "master");
+		RevCommit c2 = commitFile("file2", "file2", "master");
+
+		// update files on master
+		commitFile(FILE1, "blah", "master");
+		RevCommit c4 = commitFile("file2", "more change", "master");
+
+		RebaseResult res = git.rebase().setUpstream("HEAD~2")
+				.runInteractively(new InteractiveHandler() {
+					public void prepareSteps(List<RebaseTodoLine> steps) {
+						steps.add(0, new RebaseTodoLine(
+								"# Comment that should not be processed"));
+					}
+
+					public String modifyCommitMessage(String commit) {
+						fail("modifyCommitMessage() was not expected to be called");
+						return commit;
+					}
+				}).call();
+
+		assertEquals(RebaseResult.Status.FAST_FORWARD, res.getStatus());
+
+		RebaseResult res2 = git.rebase().setUpstream("HEAD~2")
+				.runInteractively(new InteractiveHandler() {
+					public void prepareSteps(List<RebaseTodoLine> steps) {
+						steps.get(0).setAction(Action.COMMENT); // delete
+																// RevCommit c4
+					}
+
+					public String modifyCommitMessage(String commit) {
+						fail("modifyCommitMessage() was not expected to be called");
+						return commit;
+					}
+				}).call();
+
+		assertEquals(RebaseResult.Status.OK, res2.getStatus());
+
+		ObjectId headId = db.resolve(Constants.HEAD);
+		RevWalk rw = new RevWalk(db);
+		RevCommit rc = rw.parseCommit(headId);
+
+		ObjectId head1Id = db.resolve(Constants.HEAD + "~1");
+		RevCommit rc1 = rw.parseCommit(head1Id);
+
+		assertEquals(rc.getFullMessage(), c4.getFullMessage());
+		assertEquals(rc1.getFullMessage(), c2.getFullMessage());
 	}
 
 	@Test
@@ -1508,13 +1697,173 @@ public class RebaseCommandTest extends RepositoryTestCase {
 				+ "reword 2222222 Commit 2\n";
 		write(getTodoFile(), todo);
 
-		RebaseCommand rebaseCommand = git.rebase();
-		List<Step> steps = rebaseCommand.loadSteps();
+		List<RebaseTodoLine> steps = db.readRebaseTodo(GIT_REBASE_TODO, false);
 
 		assertEquals(2, steps.size());
-		assertEquals("1111111", steps.get(0).commit.name());
-		assertEquals("2222222", steps.get(1).commit.name());
-		assertEquals(Action.REWORD, steps.get(1).action);
+		assertEquals("1111111", steps.get(0).getCommit().name());
+		assertEquals("2222222", steps.get(1).getCommit().name());
+		assertEquals(Action.REWORD, steps.get(1).getAction());
+	}
+
+	@Test
+	public void testEmptyRebaseTodo() throws Exception {
+		write(getTodoFile(), "");
+		assertEquals(0, db.readRebaseTodo(GIT_REBASE_TODO, true).size());
+		assertEquals(0, db.readRebaseTodo(GIT_REBASE_TODO, false).size());
+	}
+
+	@Test
+	public void testOnlyCommentRebaseTodo() throws Exception {
+		write(getTodoFile(), "# a b c d e\n# e f");
+		assertEquals(0, db.readRebaseTodo(GIT_REBASE_TODO, false).size());
+		List<RebaseTodoLine> lines = db.readRebaseTodo(GIT_REBASE_TODO, true);
+		assertEquals(2, lines.size());
+		for (RebaseTodoLine line : lines)
+			assertEquals(Action.COMMENT, line.getAction());
+		write(getTodoFile(), "# a b c d e\n# e f\n");
+		assertEquals(0, db.readRebaseTodo(GIT_REBASE_TODO, false).size());
+		lines = db.readRebaseTodo(GIT_REBASE_TODO, true);
+		assertEquals(2, lines.size());
+		for (RebaseTodoLine line : lines)
+			assertEquals(Action.COMMENT, line.getAction());
+		write(getTodoFile(), " 	 \r\n# a b c d e\r\n# e f\r\n#");
+		assertEquals(0, db.readRebaseTodo(GIT_REBASE_TODO, false).size());
+		lines = db.readRebaseTodo(GIT_REBASE_TODO, true);
+		assertEquals(4, lines.size());
+		for (RebaseTodoLine line : lines)
+			assertEquals(Action.COMMENT, line.getAction());
+	}
+
+	@Test
+	public void testLeadingSpacesRebaseTodo() throws Exception {
+		String todo =	"  \t\t pick 1111111 Commit 1\n"
+					+ "\t\n"
+					+ "\treword 2222222 Commit 2\n";
+		write(getTodoFile(), todo);
+
+		List<RebaseTodoLine> steps = db.readRebaseTodo(GIT_REBASE_TODO, false);
+
+		assertEquals(2, steps.size());
+		assertEquals("1111111", steps.get(0).getCommit().name());
+		assertEquals("2222222", steps.get(1).getCommit().name());
+		assertEquals(Action.REWORD, steps.get(1).getAction());
+	}
+
+	@Test
+	public void testRebaseShouldTryToParseValidLineMarkedAsComment()
+			throws IOException {
+		String todo = "# pick 1111111 Valid line commented out with space\n"
+				+ "#edit 2222222 Valid line commented out without space\n"
+				+ "# pick invalidLine Comment line at end\n";
+		write(getTodoFile(), todo);
+
+		List<RebaseTodoLine> steps = db.readRebaseTodo(GIT_REBASE_TODO, true);
+		assertEquals(3, steps.size());
+
+		RebaseTodoLine firstLine = steps.get(0);
+
+		assertEquals("1111111", firstLine.getCommit().name());
+		assertEquals("Valid line commented out with space",
+				firstLine.getShortMessage());
+		assertEquals("comment", firstLine.getAction().toToken());
+
+		try {
+			firstLine.setAction(Action.PICK);
+			assertEquals("1111111", firstLine.getCommit().name());
+			assertEquals("pick", firstLine.getAction().toToken());
+		} catch (Exception e) {
+			fail("Valid parsable RebaseTodoLine that has been commented out should allow to change the action, but failed");
+		}
+
+		assertEquals("2222222", steps.get(1).getCommit().name());
+		assertEquals("comment", steps.get(1).getAction().toToken());
+
+		assertEquals(null, steps.get(2).getCommit());
+		assertEquals(null, steps.get(2).getShortMessage());
+		assertEquals("comment", steps.get(2).getAction().toToken());
+		assertEquals("# pick invalidLine Comment line at end", steps.get(2)
+				.getComment());
+		try {
+			steps.get(2).setAction(Action.PICK);
+			fail("A comment RebaseTodoLine that doesn't contain a valid parsable line should fail, but doesn't");
+		} catch (Exception e) {
+			// expected
+		}
+
+	}
+
+	@SuppressWarnings("unused")
+	@Test
+	public void testRebaseTodoLineSetComment() throws Exception {
+		try {
+			new RebaseTodoLine("This is a invalid comment");
+			fail("Constructing a comment line with invalid comment string should fail, but doesn't");
+		} catch (JGitInternalException e) {
+			// expected
+		}
+		RebaseTodoLine validCommentLine = new RebaseTodoLine(
+				"# This is a comment");
+		assertEquals(Action.COMMENT, validCommentLine.getAction());
+		assertEquals("# This is a comment", validCommentLine.getComment());
+
+		RebaseTodoLine actionLineToBeChanged = new RebaseTodoLine(Action.EDIT,
+				AbbreviatedObjectId.fromString("1111111"), "short Message");
+		assertEquals(null, actionLineToBeChanged.getComment());
+
+		try {
+			actionLineToBeChanged.setComment("invalid comment");
+			fail("Setting a invalid comment string should fail but doesn't");
+		} catch (JGitInternalException e) {
+			assertEquals(null, actionLineToBeChanged.getComment());
+		}
+
+		actionLineToBeChanged.setComment("# valid comment");
+		assertEquals("# valid comment", actionLineToBeChanged.getComment());
+		try {
+			actionLineToBeChanged.setComment("invalid comment");
+			fail("Setting a invalid comment string should fail but doesn't");
+		} catch (JGitInternalException e) {
+			// expected
+			// setting comment failed, but was successfully set before,
+			// therefore it may not be altered since then
+			assertEquals("# valid comment", actionLineToBeChanged.getComment());
+		}
+		try {
+			actionLineToBeChanged.setComment("# line1 \n line2");
+			actionLineToBeChanged.setComment("line1 \n line2");
+			actionLineToBeChanged.setComment("\n");
+			actionLineToBeChanged.setComment("# line1 \r line2");
+			actionLineToBeChanged.setComment("line1 \r line2");
+			actionLineToBeChanged.setComment("\r");
+			actionLineToBeChanged.setComment("# line1 \n\r line2");
+			actionLineToBeChanged.setComment("line1 \n\r line2");
+			actionLineToBeChanged.setComment("\n\r");
+			fail("Setting a multiline comment string should fail but doesn't");
+		} catch (JGitInternalException e) {
+			// expected
+		}
+		// Try setting valid comments
+		actionLineToBeChanged.setComment("# valid comment");
+		assertEquals("# valid comment", actionLineToBeChanged.getComment());
+
+		actionLineToBeChanged.setComment("# \t \t valid comment");
+		assertEquals("# \t \t valid comment",
+				actionLineToBeChanged.getComment());
+
+		actionLineToBeChanged.setComment("#       ");
+		assertEquals("#       ", actionLineToBeChanged.getComment());
+
+		actionLineToBeChanged.setComment("");
+		assertEquals("", actionLineToBeChanged.getComment());
+
+		actionLineToBeChanged.setComment("  ");
+		assertEquals("  ", actionLineToBeChanged.getComment());
+
+		actionLineToBeChanged.setComment("\t\t");
+		assertEquals("\t\t", actionLineToBeChanged.getComment());
+
+		actionLineToBeChanged.setComment(null);
+		assertEquals(null, actionLineToBeChanged.getComment());
 	}
 
 	@Test
@@ -1542,8 +1891,8 @@ public class RebaseCommandTest extends RepositoryTestCase {
 
 		RebaseResult res = git.rebase().setUpstream("HEAD~2")
 				.runInteractively(new InteractiveHandler() {
-					public void prepareSteps(List<Step> steps) {
-						steps.get(0).action = Action.REWORD;
+					public void prepareSteps(List<RebaseTodoLine> steps) {
+						steps.get(0).setAction(Action.REWORD);
 					}
 					public String modifyCommitMessage(String commit) {
 						return "rewritten commit message";
@@ -1583,15 +1932,15 @@ public class RebaseCommandTest extends RepositoryTestCase {
 
 		RebaseResult res = git.rebase().setUpstream("HEAD~2")
 				.runInteractively(new InteractiveHandler() {
-					public void prepareSteps(List<Step> steps) {
-						steps.get(0).action = Action.EDIT;
+					public void prepareSteps(List<RebaseTodoLine> steps) {
+						steps.get(0).setAction(Action.EDIT);
 					}
 
 					public String modifyCommitMessage(String commit) {
 						return ""; // not used
 					}
 				}).call();
-		assertEquals(Status.STOPPED, res.getStatus());
+		assertEquals(Status.EDIT, res.getStatus());
 		RevCommit toBeEditted = git.log().call().iterator().next();
 		assertEquals("updated file1 on master", toBeEditted.getFullMessage());
 
@@ -1610,9 +1959,584 @@ public class RebaseCommandTest extends RepositoryTestCase {
 		assertEquals("edited commit message", actualCommitMag);
 	}
 
+	@Test
+	public void testParseSquashFixupSequenceCount() {
+		int count = RebaseCommand
+				.parseSquashFixupSequenceCount("# This is a combination of 3 commits.\n# newline");
+		assertEquals(3, count);
+	}
+
+	@Test
+	public void testRebaseInteractiveSingleSquashAndModifyMessage() throws Exception {
+		// create file1 on master
+		writeTrashFile(FILE1, FILE1);
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("Add file1\nnew line").call();
+		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+
+		// create file2 on master
+		writeTrashFile("file2", "file2");
+		git.add().addFilepattern("file2").call();
+		git.commit().setMessage("Add file2\nnew line").call();
+		assertTrue(new File(db.getWorkTree(), "file2").exists());
+
+		// update FILE1 on master
+		writeTrashFile(FILE1, "blah");
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("updated file1 on master\nnew line").call();
+
+		writeTrashFile("file2", "more change");
+		git.add().addFilepattern("file2").call();
+		git.commit().setMessage("update file2 on master\nnew line").call();
+
+		git.rebase().setUpstream("HEAD~3")
+				.runInteractively(new InteractiveHandler() {
+
+					public void prepareSteps(List<RebaseTodoLine> steps) {
+						steps.get(1).setAction(Action.SQUASH);
+					}
+
+					public String modifyCommitMessage(String commit) {
+						final File messageSquashFile = new File(db
+								.getDirectory(), "rebase-merge/message-squash");
+						final File messageFixupFile = new File(db
+								.getDirectory(), "rebase-merge/message-fixup");
+
+						assertFalse(messageFixupFile.exists());
+						assertTrue(messageSquashFile.exists());
+						assertEquals(
+								"# This is a combination of 2 commits.\n# This is the 2nd commit message:\nupdated file1 on master\nnew line\n# The first commit's message is:\nAdd file2\nnew line",
+								commit);
+
+						try {
+							byte[] messageSquashBytes = IO
+.readFully(
+									db.getFS(), messageSquashFile);
+							int end = RawParseUtils.prevLF(messageSquashBytes,
+									messageSquashBytes.length);
+							String messageSquashContent = RawParseUtils.decode(
+									messageSquashBytes, 0, end + 1);
+							assertEquals(messageSquashContent, commit);
+						} catch (Throwable t) {
+							fail(t.getMessage());
+						}
+
+						return "changed";
+					}
+				}).call();
+
+		RevWalk walk = new RevWalk(db);
+		ObjectId headId = db.resolve(Constants.HEAD);
+		RevCommit headCommit = walk.parseCommit(headId);
+		assertEquals(headCommit.getFullMessage(),
+				"update file2 on master\nnew line");
+
+		ObjectId head2Id = db.resolve(Constants.HEAD + "^1");
+		RevCommit head1Commit = walk.parseCommit(head2Id);
+		assertEquals("changed", head1Commit.getFullMessage());
+	}
+
+	@Test
+	public void testRebaseInteractiveMultipleSquash() throws Exception {
+		// create file0 on master
+		writeTrashFile("file0", "file0");
+		git.add().addFilepattern("file0").call();
+		git.commit().setMessage("Add file0\nnew line").call();
+		assertTrue(new File(db.getWorkTree(), "file0").exists());
+
+		// create file1 on master
+		writeTrashFile(FILE1, FILE1);
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("Add file1\nnew line").call();
+		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+
+		// create file2 on master
+		writeTrashFile("file2", "file2");
+		git.add().addFilepattern("file2").call();
+		git.commit().setMessage("Add file2\nnew line").call();
+		assertTrue(new File(db.getWorkTree(), "file2").exists());
+
+		// update FILE1 on master
+		writeTrashFile(FILE1, "blah");
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("updated file1 on master\nnew line").call();
+
+		writeTrashFile("file2", "more change");
+		git.add().addFilepattern("file2").call();
+		git.commit().setMessage("update file2 on master\nnew line").call();
+
+		git.rebase().setUpstream("HEAD~4")
+				.runInteractively(new InteractiveHandler() {
+
+					public void prepareSteps(List<RebaseTodoLine> steps) {
+						steps.get(1).setAction(Action.SQUASH);
+						steps.get(2).setAction(Action.SQUASH);
+					}
+
+					public String modifyCommitMessage(String commit) {
+						final File messageSquashFile = new File(db.getDirectory(),
+								"rebase-merge/message-squash");
+						final File messageFixupFile = new File(db.getDirectory(),
+								"rebase-merge/message-fixup");
+						assertFalse(messageFixupFile.exists());
+						assertTrue(messageSquashFile.exists());
+						assertEquals(
+								"# This is a combination of 3 commits.\n# This is the 3rd commit message:\nupdated file1 on master\nnew line\n# This is the 2nd commit message:\nAdd file2\nnew line\n# The first commit's message is:\nAdd file1\nnew line",
+								commit);
+
+						try {
+							byte[] messageSquashBytes = IO
+.readFully(
+									db.getFS(), messageSquashFile);
+							int end = RawParseUtils.prevLF(messageSquashBytes,
+									messageSquashBytes.length);
+							String messageSquashContend = RawParseUtils.decode(
+									messageSquashBytes, 0, end + 1);
+							assertEquals(messageSquashContend, commit);
+						} catch (Throwable t) {
+							fail(t.getMessage());
+						}
+
+						return "# This is a combination of 3 commits.\n# This is the 3rd commit message:\nupdated file1 on master\nnew line\n# This is the 2nd commit message:\nAdd file2\nnew line\n# The first commit's message is:\nAdd file1\nnew line";
+					}
+				}).call();
+
+		RevWalk walk = new RevWalk(db);
+		ObjectId headId = db.resolve(Constants.HEAD);
+		RevCommit headCommit = walk.parseCommit(headId);
+		assertEquals(headCommit.getFullMessage(),
+				"update file2 on master\nnew line");
+
+		ObjectId head2Id = db.resolve(Constants.HEAD + "^1");
+		RevCommit head1Commit = walk.parseCommit(head2Id);
+		assertEquals(
+				"updated file1 on master\nnew line\nAdd file2\nnew line\nAdd file1\nnew line",
+				head1Commit.getFullMessage());
+	}
+
+	@Test
+	public void testRebaseInteractiveMixedSquashAndFixup() throws Exception {
+		// create file0 on master
+		writeTrashFile("file0", "file0");
+		git.add().addFilepattern("file0").call();
+		git.commit().setMessage("Add file0\nnew line").call();
+		assertTrue(new File(db.getWorkTree(), "file0").exists());
+
+		// create file1 on master
+		writeTrashFile(FILE1, FILE1);
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("Add file1\nnew line").call();
+		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+
+		// create file2 on master
+		writeTrashFile("file2", "file2");
+		git.add().addFilepattern("file2").call();
+		git.commit().setMessage("Add file2\nnew line").call();
+		assertTrue(new File(db.getWorkTree(), "file2").exists());
+
+		// update FILE1 on master
+		writeTrashFile(FILE1, "blah");
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("updated file1 on master\nnew line").call();
+
+		writeTrashFile("file2", "more change");
+		git.add().addFilepattern("file2").call();
+		git.commit().setMessage("update file2 on master\nnew line").call();
+
+		git.rebase().setUpstream("HEAD~4")
+				.runInteractively(new InteractiveHandler() {
+
+					public void prepareSteps(List<RebaseTodoLine> steps) {
+						steps.get(1).setAction(Action.FIXUP);
+						steps.get(2).setAction(Action.SQUASH);
+					}
+
+					public String modifyCommitMessage(String commit) {
+						final File messageSquashFile = new File(db
+								.getDirectory(), "rebase-merge/message-squash");
+						final File messageFixupFile = new File(db
+								.getDirectory(), "rebase-merge/message-fixup");
+
+						assertFalse(messageFixupFile.exists());
+						assertTrue(messageSquashFile.exists());
+						assertEquals(
+								"# This is a combination of 3 commits.\n# This is the 3rd commit message:\nupdated file1 on master\nnew line\n# The 2nd commit message will be skipped:\n# Add file2\n# new line\n# The first commit's message is:\nAdd file1\nnew line",
+								commit);
+
+						try {
+							byte[] messageSquashBytes = IO.readFully(
+									db.getFS(), messageSquashFile);
+							int end = RawParseUtils.prevLF(messageSquashBytes,
+									messageSquashBytes.length);
+							String messageSquashContend = RawParseUtils.decode(
+									messageSquashBytes, 0, end + 1);
+							assertEquals(messageSquashContend, commit);
+						} catch (Throwable t) {
+							fail(t.getMessage());
+						}
+
+						return "changed";
+					}
+				}).call();
+
+		RevWalk walk = new RevWalk(db);
+		ObjectId headId = db.resolve(Constants.HEAD);
+		RevCommit headCommit = walk.parseCommit(headId);
+		assertEquals(headCommit.getFullMessage(),
+				"update file2 on master\nnew line");
+
+		ObjectId head2Id = db.resolve(Constants.HEAD + "^1");
+		RevCommit head1Commit = walk.parseCommit(head2Id);
+		assertEquals("changed", head1Commit.getFullMessage());
+	}
+
+	@Test
+	public void testRebaseInteractiveSingleFixup() throws Exception {
+		// create file1 on master
+		writeTrashFile(FILE1, FILE1);
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("Add file1\nnew line").call();
+		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+
+		// create file2 on master
+		writeTrashFile("file2", "file2");
+		git.add().addFilepattern("file2").call();
+		git.commit().setMessage("Add file2\nnew line").call();
+		assertTrue(new File(db.getWorkTree(), "file2").exists());
+
+		// update FILE1 on master
+		writeTrashFile(FILE1, "blah");
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("updated file1 on master\nnew line").call();
+
+		writeTrashFile("file2", "more change");
+		git.add().addFilepattern("file2").call();
+		git.commit().setMessage("update file2 on master\nnew line").call();
+
+		git.rebase().setUpstream("HEAD~3")
+				.runInteractively(new InteractiveHandler() {
+
+					public void prepareSteps(List<RebaseTodoLine> steps) {
+						steps.get(1).setAction(Action.FIXUP);
+					}
+
+					public String modifyCommitMessage(String commit) {
+						fail("No callback to modify commit message expected for single fixup");
+						return commit;
+					}
+				}).call();
+
+		RevWalk walk = new RevWalk(db);
+		ObjectId headId = db.resolve(Constants.HEAD);
+		RevCommit headCommit = walk.parseCommit(headId);
+		assertEquals("update file2 on master\nnew line",
+				headCommit.getFullMessage());
+
+		ObjectId head1Id = db.resolve(Constants.HEAD + "^1");
+		RevCommit head1Commit = walk.parseCommit(head1Id);
+		assertEquals("Add file2\nnew line",
+				head1Commit.getFullMessage());
+	}
+
+
+	@Test(expected = InvalidRebaseStepException.class)
+	public void testRebaseInteractiveFixupFirstCommitShouldFail()
+			throws Exception {
+		// create file1 on master
+		writeTrashFile(FILE1, FILE1);
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("Add file1\nnew line").call();
+		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+
+		// create file2 on master
+		writeTrashFile("file2", "file2");
+		git.add().addFilepattern("file2").call();
+		git.commit().setMessage("Add file2\nnew line").call();
+		assertTrue(new File(db.getWorkTree(), "file2").exists());
+
+		git.rebase().setUpstream("HEAD~1")
+				.runInteractively(new InteractiveHandler() {
+
+					public void prepareSteps(List<RebaseTodoLine> steps) {
+						steps.get(0).setAction(Action.FIXUP);
+					}
+
+					public String modifyCommitMessage(String commit) {
+						return commit;
+					}
+				}).call();
+	}
+
+	@Test(expected = InvalidRebaseStepException.class)
+	public void testRebaseInteractiveSquashFirstCommitShouldFail()
+			throws Exception {
+		// create file1 on master
+		writeTrashFile(FILE1, FILE1);
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("Add file1\nnew line").call();
+		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+
+		// create file2 on master
+		writeTrashFile("file2", "file2");
+		git.add().addFilepattern("file2").call();
+		git.commit().setMessage("Add file2\nnew line").call();
+		assertTrue(new File(db.getWorkTree(), "file2").exists());
+
+		git.rebase().setUpstream("HEAD~1")
+				.runInteractively(new InteractiveHandler() {
+
+					public void prepareSteps(List<RebaseTodoLine> steps) {
+						steps.get(0).setAction(Action.SQUASH);
+					}
+
+					public String modifyCommitMessage(String commit) {
+						return commit;
+					}
+				}).call();
+	}
+
+	@Test
+	public void testRebaseEndsIfLastStepIsEdit() throws Exception {
+		// create file1 on master
+		writeTrashFile(FILE1, FILE1);
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("Add file1\nnew line").call();
+		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+
+		// create file2 on master
+		writeTrashFile("file2", "file2");
+		git.add().addFilepattern("file2").call();
+		git.commit().setMessage("Add file2\nnew line").call();
+		assertTrue(new File(db.getWorkTree(), "file2").exists());
+
+		git.rebase().setUpstream("HEAD~1")
+				.runInteractively(new InteractiveHandler() {
+
+					public void prepareSteps(List<RebaseTodoLine> steps) {
+						steps.get(0).setAction(Action.EDIT);
+					}
+
+					public String modifyCommitMessage(String commit) {
+						return commit;
+					}
+				}).call();
+		git.commit().setAmend(true)
+				.setMessage("Add file2\nnew line\nanother line").call();
+		RebaseResult result = git.rebase().setOperation(Operation.CONTINUE)
+				.call();
+		assertEquals(Status.OK, result.getStatus());
+
+	}
+
+	@Test
+	public void testRebaseShouldStopForEditInCaseOfConflict()
+			throws Exception {
+		// create file1 on master
+		writeTrashFile(FILE1, FILE1);
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("Add file1\nnew line").call();
+		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+
+		//change file1
+		writeTrashFile(FILE1, FILE1 + "a");
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("Change file1").call();
+
+		//change file1
+		writeTrashFile(FILE1, FILE1 + "b");
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("Change file1").call();
+
+		RebaseResult result = git.rebase().setUpstream("HEAD~2")
+				.runInteractively(new InteractiveHandler() {
+
+					public void prepareSteps(List<RebaseTodoLine> steps) {
+						steps.remove(0);
+						steps.get(0).setAction(Action.EDIT);
+					}
+
+					public String modifyCommitMessage(String commit) {
+						return commit;
+					}
+				}).call();
+		assertEquals(Status.STOPPED, result.getStatus());
+		git.add().addFilepattern(FILE1).call();
+		result = git.rebase().setOperation(Operation.CONTINUE).call();
+		assertEquals(Status.EDIT, result.getStatus());
+
+	}
+
+	@Test
+	public void testRebaseShouldStopForRewordInCaseOfConflict()
+			throws Exception {
+		// create file1 on master
+		writeTrashFile(FILE1, FILE1);
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("Add file1\nnew line").call();
+		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+
+		// change file1
+		writeTrashFile(FILE1, FILE1 + "a");
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("Change file1").call();
+
+		// change file1
+		writeTrashFile(FILE1, FILE1 + "b");
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("Change file1").call();
+
+		RebaseResult result = git.rebase().setUpstream("HEAD~2")
+				.runInteractively(new InteractiveHandler() {
+
+					public void prepareSteps(List<RebaseTodoLine> steps) {
+						steps.remove(0);
+						steps.get(0).setAction(Action.REWORD);
+					}
+
+					public String modifyCommitMessage(String commit) {
+						return "rewritten commit message";
+					}
+				}).call();
+		assertEquals(Status.STOPPED, result.getStatus());
+		git.add().addFilepattern(FILE1).call();
+		result = git.rebase().runInteractively(new InteractiveHandler() {
+
+			public void prepareSteps(List<RebaseTodoLine> steps) {
+				steps.remove(0);
+				steps.get(0).setAction(Action.REWORD);
+			}
+
+			public String modifyCommitMessage(String commit) {
+				return "rewritten commit message";
+			}
+		}).setOperation(Operation.CONTINUE).call();
+		assertEquals(Status.OK, result.getStatus());
+		Iterator<RevCommit> logIterator = git.log().all().call().iterator();
+		String actualCommitMag = logIterator.next().getShortMessage();
+		assertEquals("rewritten commit message", actualCommitMag);
+
+	}
+
+	@Test
+	public void testRebaseShouldSquashInCaseOfConflict() throws Exception {
+		// create file1 on master
+		writeTrashFile(FILE1, FILE1);
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("Add file1\nnew line").call();
+		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+
+		// change file2
+		writeTrashFile("file2", "file2");
+		git.add().addFilepattern("file2").call();
+		git.commit().setMessage("Change file2").call();
+
+		// change file1
+		writeTrashFile(FILE1, FILE1 + "a");
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("Change file1").call();
+
+		// change file1
+		writeTrashFile(FILE1, FILE1 + "b");
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("Change file1").call();
+
+		RebaseResult result = git.rebase().setUpstream("HEAD~3")
+				.runInteractively(new InteractiveHandler() {
+
+					public void prepareSteps(List<RebaseTodoLine> steps) {
+						steps.get(0).setAction(Action.PICK);
+						steps.remove(1);
+						steps.get(1).setAction(Action.SQUASH);
+					}
+
+					public String modifyCommitMessage(String commit) {
+						return "squashed message";
+					}
+				}).call();
+		assertEquals(Status.STOPPED, result.getStatus());
+		git.add().addFilepattern(FILE1).call();
+		result = git.rebase().runInteractively(new InteractiveHandler() {
+
+			public void prepareSteps(List<RebaseTodoLine> steps) {
+				steps.get(0).setAction(Action.PICK);
+				steps.remove(1);
+				steps.get(1).setAction(Action.SQUASH);
+			}
+
+			public String modifyCommitMessage(String commit) {
+				return "squashed message";
+			}
+		}).setOperation(Operation.CONTINUE).call();
+		assertEquals(Status.OK, result.getStatus());
+		Iterator<RevCommit> logIterator = git.log().all().call().iterator();
+		String actualCommitMag = logIterator.next().getShortMessage();
+		assertEquals("squashed message", actualCommitMag);
+	}
+
+	@Test
+	public void testRebaseShouldFixupInCaseOfConflict() throws Exception {
+		// create file1 on master
+		writeTrashFile(FILE1, FILE1);
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("Add file1").call();
+		assertTrue(new File(db.getWorkTree(), FILE1).exists());
+
+		// change file2
+		writeTrashFile("file2", "file2");
+		git.add().addFilepattern("file2").call();
+		git.commit().setMessage("Change file2").call();
+
+		// change file1
+		writeTrashFile(FILE1, FILE1 + "a");
+		git.add().addFilepattern(FILE1).call();
+		git.commit().setMessage("Change file1").call();
+
+		// change file1, add file3
+		writeTrashFile(FILE1, FILE1 + "b");
+		writeTrashFile("file3", "file3");
+		git.add().addFilepattern(FILE1).call();
+		git.add().addFilepattern("file3").call();
+		git.commit().setMessage("Change file1, add file3").call();
+
+		RebaseResult result = git.rebase().setUpstream("HEAD~3")
+				.runInteractively(new InteractiveHandler() {
+
+					public void prepareSteps(List<RebaseTodoLine> steps) {
+						steps.get(0).setAction(Action.PICK);
+						steps.remove(1);
+						steps.get(1).setAction(Action.FIXUP);
+					}
+
+					public String modifyCommitMessage(String commit) {
+						return commit;
+					}
+				}).call();
+		assertEquals(Status.STOPPED, result.getStatus());
+		git.add().addFilepattern(FILE1).call();
+		result = git.rebase().runInteractively(new InteractiveHandler() {
+
+			public void prepareSteps(List<RebaseTodoLine> steps) {
+				steps.get(0).setAction(Action.PICK);
+				steps.remove(1);
+				steps.get(1).setAction(Action.FIXUP);
+			}
+
+			public String modifyCommitMessage(String commit) {
+				return "commit";
+			}
+		}).setOperation(Operation.CONTINUE).call();
+		assertEquals(Status.OK, result.getStatus());
+		Iterator<RevCommit> logIterator = git.log().all().call().iterator();
+		String actualCommitMsg = logIterator.next().getShortMessage();
+		assertEquals("Change file2", actualCommitMsg);
+		actualCommitMsg = logIterator.next().getShortMessage();
+		assertEquals("Add file1", actualCommitMsg);
+		assertTrue(new File(db.getWorkTree(), "file3").exists());
+
+	}
+
 	private File getTodoFile() {
-		File todoFile = resolve(db.getDirectory(),
-				"rebase-merge/git-rebase-todo");
+		File todoFile = resolve(db.getDirectory(), GIT_REBASE_TODO);
 		return todoFile;
 	}
 }
